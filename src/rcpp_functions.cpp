@@ -796,7 +796,7 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   arma::mat intervals(P, 2*alphas.length()+1);
   intervals.col(alphas.length())=Rbhat_1;
   for(unsigned int p=0; p<P; p++){
-    for(unsigned int j=0; j<alphas.length(); j++){
+    for(int j=0; j<alphas.length(); j++){
       intervals(p,j)=Rbhat_1(p)-z_quantiles(j)*std_errors(p);
       intervals(p, 2*alphas.length()-j)=Rbhat_1(p)+z_quantiles(j)*std_errors(p);
     }
