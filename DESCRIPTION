@@ -1,11 +1,10 @@
 Package: desla
 Type: Package
 Title: Desparsified Lasso
-Version: 0.1.0
+Version: 0.1.1
 Author: Robert Adamek
 Maintainer: Robert Adamek <robertadamek94@gmail.com>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Description: Calculates the desparsified lasso as originally introduced in van de Geer et al. (2014), and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in Adamek et al. (2020).
 License: GPL (>=2)
 Encoding: UTF-8
 LazyData: true
@@ -14,4 +13,7 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Imports: 
-    Rcpp
+    Rcpp,
+    Rdpack
+RdMacros: 
+    Rdpack

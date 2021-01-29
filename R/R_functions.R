@@ -1,25 +1,50 @@
-#' Calculate the desparsified lasso
-#' @param X regressor matrix
-#' @param y dependent variable vector
+#' @importFrom Rdpack reprompt
+#' @title Desparsified lasso
+#' @description Calculates the desparsified lasso as originally introduced in \insertCite{vandeGeer14;textual}{desla}, and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in \insertCite{adamek2020lasso;textual}{desla}.
+#' @param X \code{T}x\code{N} regressor matrix
+#' @param y \code{T}x1 dependent variable vector
 #' @param H indexes of relevant regressors
 #' @param init_partial (optional) boolean, true if you want the initial lasso to be partially penalized (false by default)
-#' @param nw_partials (optional) boolean vector with the dimension of H, trues if you want the nodewise regressions to be partially penalized (all false by default)
+#' @param nw_partials (optional) boolean vector with the dimension of \code{H}, trues if you want the nodewise regressions to be partially penalized (all false by default)
 #' @param gridsize (optional) integer, how many different lambdas there should be in both inital and nodewise grids (100 by default)
 #' @param init_grid (optional) vector, containing user specified initial grid
-#' @param nw_grids (optional) matrix with number of rows the size of H, rows containing user specified grids for the nodewise regressions
+#' @param nw_grids (optional) matrix with number of rows the size of \code{H}, rows containing user specified grids for the nodewise regressions
 #' @param init_selection_type (optional) integer, how should lambda be selected in the inital regression, 1=BIC, 2=AIC, 3=EBIC (1 by default)
-#' @param nw_selection_types (optional) inteter vector with the dimension of H, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC (all 1s by default)
+#' @param nw_selection_types (optional) inteter vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC (all 1s by default)
 #' @param init_nonzero_limit (optional) number controlling the maximum number of nonzeros that can be selected in the initial regression (0.5 by default, meaning no more than 0.5*T regressors can have nonzero estimates)
-#' @param nw_nonzero_limits (optional) vector with the dimension of H, controlling the maximum number of nonzeros that can be selected in the nodewise regressions (0.5s by default)
+#' @param nw_nonzero_limits (optional) vector with the dimension of \code{H}, controlling the maximum number of nonzeros that can be selected in the nodewise regressions (0.5s by default)
 #' @param init_opt_threshold (optional) optimization threshold for the coordinate descent algorithm in the inital regression (10^(-4) by default)
-#' @param nw_opt_thresholds (optional) vector with the dimension of H, optimization thresholds for the coordinate descent algorithm in the nodewise lasso regression (10^(-4)s by default)
+#' @param nw_opt_thresholds (optional) vector with the dimension of \code{H}, optimization thresholds for the coordinate descent algorithm in the nodewise lasso regression (10^(-4)s by default)
 #' @param init_opt_type (optional) integer, which type of coordinate descent algorithm should be used in the inial regression, 1=naive, 2=covariance, 3=adaptive (3 by default)
-#' @param nw_opt_types (optional)inteter vector with the dimension of H, which type of coordinate descent algorithm should be used in the nodewise regressions, 1=naive, 2=covariance, 3=adaptive (3s by default)
-#' @param LRVtrunc (optional) parameter controlling the bandwidth Q_T used in the long run covariance matrix, Q_T=ceil(T_multiplier*T^LRVtrunc) (LRVtrunc=0.2 by default)
-#' @param T_multiplier (optional) parameter controlling the bandwidth Q_T used in the long run covariance matrix, Q_T=ceil(T_multiplier*T^LRVtrunc) (Tmultiplier=2 by default)
+#' @param nw_opt_types (optional)inteter vector with the dimension of \code{H}, which type of coordinate descent algorithm should be used in the nodewise regressions, 1=naive, 2=covariance, 3=adaptive (3s by default)
+#' @param LRVtrunc (optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}) (\code{LRVtrunc}=0.2 by default)
+#' @param T_multiplier (optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}) (\code{Tmultiplier}=2 by default)
 #' @param alphas (optional) vector of significance levels (c(0.01,0.05,0.1) by default)
-#' @param R (optional) matrix with number of columns the dimension of H, used to test the null hypothesis R*beta=q (identity matrix as default)
-#' @param q (optional) vector of size same as the rows of H, used to test the null hypothesis R*beta=q (zeroes by default)
+#' @param R (optional) matrix with number of columns the dimension of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (identity matrix as default)
+#' @param q (optional) vector of size same as the rows of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (zeroes by default)
+#' @return Returns a list with the following elements: \cr
+#' $bhat: desparsified lasso estimates for the parameters indexed by \code{H} \cr
+#' $intervals: matrix containing the confidence intervals for parameters indexed in \code{H}, for significance levels given in \code{alphas} \cr
+#' $joint_chi2_stat: test statistic for hull hypothesis \code{R}*beta=\code{q}, asymptotically chi squared distributed \cr
+#' $chi2_critical_values: critical values of the chi squared distribution with degrees of freedom corresponding to the joint test \code{R}*beta=\code{q}, for significance levels given in \code{alphas} \cr
+#' $betahat: lasso estimates from the inital regression of \code{y} on \code{X} \cr
+#' $Gammahat: matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
+#' $Upsilonhat_inv: matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
+#' $Thetahat: approximate inverse of (X'X)/T, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
+#' $Omegahat: long run covariance matrix for the variables indexed by \code{H}, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
+#' $init_grid: redundant output, returning the function input \code{init_grid} \cr
+#' $nw_grids: redundant output, returning the function input \code{nw_grids} \cr
+#' $init_lambda: value of lambda that was selected in the inital lasso regression \cr
+#' $nw_lambdas: values of lambdas that were selected in the nodewise lasso regressions \cr
+#' $init_nonzero: redundant output, returning the function input \code{init_nonzero} \cr
+#' $nw_nonzeros: redundant output, returning the function input \code{nw_nonzeros} \cr
+#' @examples
+#' X<-matrix(rnorm(100*100), nrow=100)
+#' y<-rnorm(100)
+#' H<-c(1, 2, 3)
+#' d<-desla(X, y, H)
+#' @references
+#' \insertAllCited{}
 #' @export
 desla=function(X, y, H, init_partial=NA, nw_partials=NA, gridsize=100, init_grid=NA, nw_grids=NA, init_selection_type=NA, nw_selection_types=NA,
                           init_nonzero_limit=NA, nw_nonzero_limits=NA, init_opt_threshold=NA, nw_opt_thresholds=NA, init_opt_type=NA, nw_opt_types=NA,
@@ -40,7 +65,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, gridsize=100, init_grid
   }
 
   if(is.na(init_grid) || is.na(nw_grids)){
-    g=Rwrap_build_gridsXy(nrow(X), ncol(X), gridsize, X, y, H)
+    g=.Rwrap_build_gridsXy(nrow(X), ncol(X), gridsize, X, y, H)
     if(is.na(init_grid)){
       init_grid=g$init_grid
     }
@@ -111,7 +136,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, gridsize=100, init_grid
     q=rep(0, nrow(R))
   }
 
-  PDLI=Rwrap_partial_desparsified_lasso_inference(X, y, H, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
+  PDLI=.Rwrap_partial_desparsified_lasso_inference(X, y, H, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
                                                   LRVtrunc, T_multiplier, alphas, R, q)
   CInames=rep("",2*length(alphas)+1)
@@ -121,6 +146,13 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, gridsize=100, init_grid
     CInames[2*length(alphas)+2-i]=paste("upper ", alphas[i], sep="")
   }
   colnames(PDLI$inference$intervals)=CInames
+  H=H+1 #turns indexes back into R format
+  rownames(PDLI$inference$intervals)=H
+  rownames(PDLI$bhat_1)=H
+  rownames(PDLI$inference$chi2_quantiles)=alphas
+  rownames(PDLI$nw$grids)=H
+  rownames(PDLI$nw$lambdas)=H
+  rownames(PDLI$nw$nonzeros)=H
   return(list(bhat=PDLI$bhat_1,
               intervals=PDLI$inference$intervals,
               joint_chi2_stat=PDLI$inference$joint_chi2_stat,
