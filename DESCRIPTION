@@ -1,7 +1,7 @@
 Package: desla
 Type: Package
 Title: Desparsified Lasso
-Version: 0.1.2
+Version: 0.1.21
 Author: Robert Adamek
 Maintainer: Robert Adamek <robertadamek94@gmail.com>
 Description: Calculates the desparsified lasso as originally introduced in van de Geer et al. (2014), and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in Adamek et al. (2020).
