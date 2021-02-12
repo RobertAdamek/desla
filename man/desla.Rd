@@ -10,6 +10,8 @@ desla(
   H,
   init_partial = NA,
   nw_partials = NA,
+  demean = T,
+  scale = T,
   gridsize = 100,
   init_grid = NA,
   nw_grids = NA,
@@ -38,6 +40,10 @@ desla(
 \item{init_partial}{(optional) boolean, true if you want the initial lasso to be partially penalized (false by default)}
 
 \item{nw_partials}{(optional) boolean vector with the dimension of \code{H}, trues if you want the nodewise regressions to be partially penalized (all false by default)}
+
+\item{demean}{(optional) boolean, true if \code{X} and \code{y} should be demeaned before the desparsified lasso is calculated. This is recommended, due to the assumptions for the method (true by default)}
+
+\item{scale}{(optional) boolean, true if \code{X} and \code{y} should be scaled by the column-wise standard deviations. Recommended for lasso based methods in general, since the penalty is scale-sensitive (true by default)}
 
 \item{gridsize}{(optional) integer, how many different lambdas there should be in both inital and nodewise grids (100 by default)}
 
@@ -73,29 +79,31 @@ desla(
 }
 \value{
 Returns a list with the following elements: \cr
-$bhat: desparsified lasso estimates for the parameters indexed by \code{H} \cr
-$intervals: matrix containing the confidence intervals for parameters indexed in \code{H}, for significance levels given in \code{alphas} \cr
-$joint_chi2_stat: test statistic for hull hypothesis \code{R}*beta=\code{q}, asymptotically chi squared distributed \cr
-$chi2_critical_values: critical values of the chi squared distribution with degrees of freedom corresponding to the joint test \code{R}*beta=\code{q}, for significance levels given in \code{alphas} \cr
-$betahat: lasso estimates from the inital regression of \code{y} on \code{X} \cr
-$Gammahat: matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
-$Upsilonhat_inv: matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
-$Thetahat: approximate inverse of (X'X)/T, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
-$Omegahat: long run covariance matrix for the variables indexed by \code{H}, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
-$init_grid: redundant output, returning the function input \code{init_grid} \cr
-$nw_grids: redundant output, returning the function input \code{nw_grids} \cr
-$init_lambda: value of lambda that was selected in the inital lasso regression \cr
-$nw_lambdas: values of lambdas that were selected in the nodewise lasso regressions \cr
-$init_nonzero: redundant output, returning the function input \code{init_nonzero} \cr
-$nw_nonzeros: redundant output, returning the function input \code{nw_nonzeros} \cr
+\item{\code{bhat}}{desparsified lasso estimates for the parameters indexed by \code{H}. These estimates are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{bhat_unscaled}}
+\item{\code{bhat_unscaled}}{desparsified lasso estimates for the parameters indexed by \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
+\item{\code{intervals}}{matrix containing the confidence intervals for parameters indexed in \code{H}, for significance levels given in \code{alphas}. These are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{intervals_unscaled}}
+\item{\code{intervals_unscaled}}{matrix containing the confidence intervals for parameters indexed in \code{H},unscaled to be in the original scale of \code{y} and \code{X}}
+\item{\code{joint_chi2_stat}}{test statistic for hull hypothesis \code{R}*beta=\code{q}, asymptotically chi squared distributed}
+\item{\code{chi2_critical_values}}{critical values of the chi squared distribution with degrees of freedom corresponding to the joint test \code{R}*beta=\code{q}, for significance levels given in \code{alphas}}
+\item{\code{betahat}}{lasso estimates from the inital regression of \code{y} on \code{X}}
+\item{\code{Gammahat}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
+\item{\code{Upsilonhat_inv}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
+\item{\code{Thetahat}}{approximate inverse of (X'X)/T, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
+\item{\code{Omegahat}}{long run covariance matrix for the variables indexed by \code{H}, for details see \insertCite{adamek2020lasso;textual}{desla}}
+\item{\code{init_grid}}{redundant output, returning the function input \code{init_grid}}
+\item{\code{nw_grids}}{redundant output, returning the function input \code{nw_grids}}
+\item{\code{init_lambda}}{value of lambda that was selected in the inital lasso regression}
+\item{\code{nw_lambdas}}{values of lambdas that were selected in the nodewise lasso regressions}
+\item{\code{init_nonzero}}{redundant output, returning the function input \code{init_nonzero}}
+\item{\code{nw_nonzeros}}{redundant output, returning the function input \code{nw_nonzeros}}
 }
 \description{
 Calculates the desparsified lasso as originally introduced in \insertCite{vandeGeer14;textual}{desla}, and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in \insertCite{adamek2020lasso;textual}{desla}.
 }
 \examples{
 X<-matrix(rnorm(100*100), nrow=100)
-y<-rnorm(100)
-H<-c(1, 2, 3)
+y<-X[,1:4]\%*\%c(1,2,3,4)+rnorm(100)
+H<-c(1, 2, 3, 4)
 d<-desla(X, y, H)
 }
 \references{

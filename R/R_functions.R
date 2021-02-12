@@ -4,6 +4,8 @@
 #' @param X \code{T}x\code{N} regressor matrix
 #' @param y \code{T}x1 dependent variable vector
 #' @param H indexes of relevant regressors
+#' @param demean (optional) boolean, true if \code{X} and \code{y} should be demeaned before the desparsified lasso is calculated. This is recommended, due to the assumptions for the method (true by default)
+#' @param scale (optional) boolean, true if \code{X} and \code{y} should be scaled by the column-wise standard deviations. Recommended for lasso based methods in general, since the penalty is scale-sensitive (true by default)
 #' @param init_partial (optional) boolean, true if you want the initial lasso to be partially penalized (false by default)
 #' @param nw_partials (optional) boolean vector with the dimension of \code{H}, trues if you want the nodewise regressions to be partially penalized (all false by default)
 #' @param gridsize (optional) integer, how many different lambdas there should be in both inital and nodewise grids (100 by default)
@@ -23,34 +25,42 @@
 #' @param R (optional) matrix with number of columns the dimension of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (identity matrix as default)
 #' @param q (optional) vector of size same as the rows of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (zeroes by default)
 #' @return Returns a list with the following elements: \cr
-#' $bhat: desparsified lasso estimates for the parameters indexed by \code{H} \cr
-#' $intervals: matrix containing the confidence intervals for parameters indexed in \code{H}, for significance levels given in \code{alphas} \cr
-#' $joint_chi2_stat: test statistic for hull hypothesis \code{R}*beta=\code{q}, asymptotically chi squared distributed \cr
-#' $chi2_critical_values: critical values of the chi squared distribution with degrees of freedom corresponding to the joint test \code{R}*beta=\code{q}, for significance levels given in \code{alphas} \cr
-#' $betahat: lasso estimates from the inital regression of \code{y} on \code{X} \cr
-#' $Gammahat: matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
-#' $Upsilonhat_inv: matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
-#' $Thetahat: approximate inverse of (X'X)/T, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
-#' $Omegahat: long run covariance matrix for the variables indexed by \code{H}, for details see \insertCite{adamek2020lasso;textual}{desla} \cr
-#' $init_grid: redundant output, returning the function input \code{init_grid} \cr
-#' $nw_grids: redundant output, returning the function input \code{nw_grids} \cr
-#' $init_lambda: value of lambda that was selected in the inital lasso regression \cr
-#' $nw_lambdas: values of lambdas that were selected in the nodewise lasso regressions \cr
-#' $init_nonzero: redundant output, returning the function input \code{init_nonzero} \cr
-#' $nw_nonzeros: redundant output, returning the function input \code{nw_nonzeros} \cr
+#' \item{\code{bhat}}{desparsified lasso estimates for the parameters indexed by \code{H}. These estimates are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{bhat_unscaled}}
+#' \item{\code{bhat_unscaled}}{desparsified lasso estimates for the parameters indexed by \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
+#' \item{\code{intervals}}{matrix containing the confidence intervals for parameters indexed in \code{H}, for significance levels given in \code{alphas}. These are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{intervals_unscaled}}
+#' \item{\code{intervals_unscaled}}{matrix containing the confidence intervals for parameters indexed in \code{H},unscaled to be in the original scale of \code{y} and \code{X}}
+#' \item{\code{joint_chi2_stat}}{test statistic for hull hypothesis \code{R}*beta=\code{q}, asymptotically chi squared distributed}
+#' \item{\code{chi2_critical_values}}{critical values of the chi squared distribution with degrees of freedom corresponding to the joint test \code{R}*beta=\code{q}, for significance levels given in \code{alphas}}
+#' \item{\code{betahat}}{lasso estimates from the inital regression of \code{y} on \code{X}}
+#' \item{\code{Gammahat}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
+#' \item{\code{Upsilonhat_inv}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
+#' \item{\code{Thetahat}}{approximate inverse of (X'X)/T, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
+#' \item{\code{Omegahat}}{long run covariance matrix for the variables indexed by \code{H}, for details see \insertCite{adamek2020lasso;textual}{desla}}
+#' \item{\code{init_grid}}{redundant output, returning the function input \code{init_grid}}
+#' \item{\code{nw_grids}}{redundant output, returning the function input \code{nw_grids}}
+#' \item{\code{init_lambda}}{value of lambda that was selected in the inital lasso regression}
+#' \item{\code{nw_lambdas}}{values of lambdas that were selected in the nodewise lasso regressions}
+#' \item{\code{init_nonzero}}{redundant output, returning the function input \code{init_nonzero}}
+#' \item{\code{nw_nonzeros}}{redundant output, returning the function input \code{nw_nonzeros}}
 #' @examples
 #' X<-matrix(rnorm(100*100), nrow=100)
-#' y<-rnorm(100)
-#' H<-c(1, 2, 3)
+#' y<-X[,1:4]%*%c(1,2,3,4)+rnorm(100)
+#' H<-c(1, 2, 3, 4)
 #' d<-desla(X, y, H)
 #' @references
 #' \insertAllCited{}
 #' @export
-desla=function(X, y, H, init_partial=NA, nw_partials=NA, gridsize=100, init_grid=NA, nw_grids=NA, init_selection_type=NA, nw_selection_types=NA,
+desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, gridsize=100, init_grid=NA, nw_grids=NA, init_selection_type=NA, nw_selection_types=NA,
                           init_nonzero_limit=NA, nw_nonzero_limits=NA, init_opt_threshold=NA, nw_opt_thresholds=NA, init_opt_type=NA, nw_opt_types=NA,
                           LRVtrunc=0.2, T_multiplier=2, alphas=c(0.01,0.05,0.1), R=NA, q=NA){
   H=H-1 #turns indexes into C++ format
   h=length(H)
+
+  check_cols <- apply(X, 2, function(x){max(x) - min(x) == 0})
+  if( (demean || scale) && (sum(check_cols)>0) ){
+    warning("Constant variable in X, while demean or scale are true. I take demean=scale=FALSE to prevent errors.")
+    demean<-scale<-F
+  }
 
   if(is.na(init_partial)){
     init_partial=F
@@ -136,7 +146,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, gridsize=100, init_grid
     q=rep(0, nrow(R))
   }
 
-  PDLI=.Rwrap_partial_desparsified_lasso_inference(X, y, H, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
+  PDLI=.Rwrap_partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
                                                   LRVtrunc, T_multiplier, alphas, R, q)
   CInames=rep("",2*length(alphas)+1)
@@ -146,15 +156,20 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, gridsize=100, init_grid
     CInames[2*length(alphas)+2-i]=paste("upper ", alphas[i], sep="")
   }
   colnames(PDLI$inference$intervals)=CInames
+  colnames(PDLI$inference$intervals_unscaled)=CInames
   H=H+1 #turns indexes back into R format
-  rownames(PDLI$inference$intervals)=H
   rownames(PDLI$bhat_1)=H
+  rownames(PDLI$bhat_1_unscaled)=H
+  rownames(PDLI$inference$intervals)=H
+  rownames(PDLI$inference$intervals_unscaled)=H
   rownames(PDLI$inference$chi2_quantiles)=alphas
   rownames(PDLI$nw$grids)=H
   rownames(PDLI$nw$lambdas)=H
   rownames(PDLI$nw$nonzeros)=H
   return(list(bhat=PDLI$bhat_1,
+              bhat_unscaled=PDLI$bhat_1_unscaled,
               intervals=PDLI$inference$intervals,
+              intervals_unscaled=PDLI$inference$intervals_unscaled,
               joint_chi2_stat=PDLI$inference$joint_chi2_stat,
               chi2_critical_values=PDLI$inference$chi2_quantiles,
               betahat=PDLI$init$betahat,

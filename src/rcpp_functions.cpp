@@ -120,6 +120,7 @@ struct partial_desparsified_lasso_inference_output{
   unsigned int init_gridsize, init_lambda_pos, init_nonzero;
   double init_lambda, init_nonzero_limit, init_criterion_value, init_SSR;
   arma::vec bhat_1;
+  arma::vec bhat_1_unscaled;
   arma::vec init_grid, y, init_residual, betahat, betahat_1, betahat_2;
   arma::vec nw_gridsizes, nw_lambda_poss, nw_nonzeros, nw_lambdas, nw_nonzero_limits, nw_criterion_values, nw_SSRs;
   arma::uvec H, minusH;
@@ -135,6 +136,7 @@ struct partial_desparsified_lasso_inference_output{
   arma::vec q;
   arma::vec z_quantiles;
   arma::mat intervals;
+  arma::mat intervals_unscaled;
   double joint_chi2_stat;
   arma::vec chi2_quantiles;
 };
@@ -164,6 +166,15 @@ struct simulation_output{
 struct grids_output{
   arma::vec init_grid;
   arma::mat nw_grids;
+};
+
+struct standardize_output{
+  arma::vec y_scaled;
+  arma::mat X_scaled;
+  double y_mean;
+  arma::vec X_means;
+  double y_sd;
+  arma::vec X_sds;
 };
 
 //auxilliary functions
@@ -326,7 +337,7 @@ arma::uvec unique_match(arma::uvec& minusj, arma::uvec& Hminusj){
 }
 
 arma::mat coordinate_descent_naive(const arma::mat& X, const arma::colvec& y, const arma::vec& grid, const double& opt_threshold,
-                             const unsigned int& N, const unsigned int& T, const unsigned int& gridsize){
+                                   const unsigned int& N, const unsigned int& T, const unsigned int& gridsize){
   arma::mat betahats(N,gridsize);
   arma::vec betahat(N,fill::zeros);
   arma::vec betahat_old(N,fill::zeros);
@@ -383,7 +394,7 @@ arma::mat coordinate_descent_naive(const arma::mat& X, const arma::colvec& y, co
 }
 
 arma::mat coordinate_descent_covariance(const arma::mat& X, const arma::colvec& y, const arma::vec& grid, const double& opt_threshold,
-                                  const unsigned int& N, const unsigned int& T, const unsigned int& gridsize){
+                                        const unsigned int& N, const unsigned int& T, const unsigned int& gridsize){
   arma::mat betahat_mat(N,gridsize);
   arma::vec betahat(N,fill::zeros);
   arma::vec betahat_old(N,fill::zeros);
@@ -495,6 +506,75 @@ arma::mat LRVestimator(const arma::vec& init_residual, const arma::mat& nw_resid
   return Omegahat;
 }
 
+standardize_output standardize(const arma::mat& X, const arma::vec& y, const bool& demean, const bool& scale){
+  unsigned int N=X.n_cols;
+  unsigned int T=X.n_rows;
+  standardize_output ret;
+  if(demean || scale){
+    ret.y_mean=mean(y);
+    ret.X_means=arma::vec(N, fill::zeros);
+    for(unsigned int j=0; j<N; j++){
+      ret.X_means(j)=mean(X.col(j));
+    }
+  }
+  if(scale){
+    ret.X_sds=arma::vec(N, fill::zeros);
+    double sum=0;
+    for(unsigned int t=0; t<T; t++){
+      sum+=pow(y(t)-ret.y_mean,2);
+    }
+    ret.y_sd=sqrt(sum/T);
+    for(unsigned int j=0; j<N; j++){
+      sum=0;
+      for(unsigned int t=0; t<T; t++){
+        sum+=pow(X.at(t,j)-ret.X_means(j),2);
+      }
+      ret.X_sds(j)=sqrt(sum/T);
+    }
+  }
+  ret.y_scaled=arma::vec(T, fill::zeros);
+  ret.X_scaled=arma::mat(T,N, fill::zeros);
+  if(demean && scale){
+    for(unsigned int t=0; t<T; t++){
+      ret.y_scaled(t)=(y(t)-ret.y_mean)/ret.y_sd;
+      for(unsigned int j=0; j<N; j++){
+        ret.X_scaled.at(t,j)=(X.at(t,j)-ret.X_means(j))/ret.X_sds(j);
+      }
+    }
+  }else if(demean && !scale){
+    for(unsigned int t=0; t<T; t++){
+      ret.y_scaled(t)=(y(t)-ret.y_mean);
+      for(unsigned int j=0; j<N; j++){
+        ret.X_scaled.at(t,j)=(X.at(t,j)-ret.X_means(j));
+      }
+    }
+  }else if(!demean && scale){
+    for(unsigned int t=0; t<T; t++){
+      ret.y_scaled(t)=y(t)/ret.y_sd;
+      for(unsigned int j=0; j<N; j++){
+        ret.X_scaled.at(t,j)=X.at(t,j)/ret.X_sds(j);
+      }
+    }
+  }else{
+    ret.y_scaled=y;
+    ret.X_scaled=X;
+  }
+  return ret;
+}
+
+arma::vec unscale(const standardize_output s, const arma::vec& beta_H, const arma::uvec& H, const bool& demean, const bool& scale){
+  unsigned int h=H.n_elem;
+  arma::vec unscaled_beta_H(h, fill::zeros);
+  if(scale){
+    for(unsigned int i=0; i<h; i++){
+      unsigned int j=H(i);
+      unscaled_beta_H(i)=(s.y_sd/s.X_sds(j))*beta_H(i);
+    }
+  }else{
+    unscaled_beta_H=beta_H;
+  }
+  return unscaled_beta_H;
+}
 
 
 
@@ -681,8 +761,9 @@ partial_lasso_selected_output partial_lasso_selected(const arma::mat& X, const a
   return ret;
 }
 
-partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
-                                                             const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types){
+partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids,
+                                                             const int& init_selection_type, const arma::vec& nw_selection_types,const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits,
+                                                             const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types){
 
 
   partial_lasso_selected_output init_L=partial_lasso_selected(X, y, H, init_partial, init_grid, init_selection_type, init_nonzero_limit,
@@ -779,11 +860,14 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
   return ret;
 }
 
-partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
+partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials,
+                                                                                 const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
                                                                                  const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types,
                                                                                  const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q){
-  partial_desparsified_lasso_output PDL=partial_desparsified_lasso(X, y, H, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
+  standardize_output s=standardize(X, y, demean, scale);
+  partial_desparsified_lasso_output PDL=partial_desparsified_lasso(s.X_scaled, s.y_scaled, H, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                                    init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types);
+  arma::vec bhat_1_unscaled=unscale(s, PDL.bhat_1, H, demean, scale);
   arma::mat Omegahat=LRVestimator(PDL.init_residual, PDL.nw_residuals, PDL.N, PDL.T, PDL.h, LRVtrunc, T_multiplier);
   arma::vec z_quantiles=qnorm(alphas/2.0,0.0,1.0,false,false);
 
@@ -803,6 +887,10 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
       intervals(p, 2*alphas.length()-j)=Rbhat_1(p)+z_quantiles(j)*std_errors(p);
     }
   }
+  arma::mat intervals_unscaled=intervals;
+  for(unsigned int j=0; j<2*alphas.length()+1; j++){
+    intervals_unscaled.col(j)=unscale(s, intervals.col(j), H, demean, scale);
+  }
   double joint_chi2_stat=as_scalar( (Rbhat_1-q).t()*inv_sympd(R*covariance*R.t()/double(PDL.T))*(Rbhat_1-q) );
 
   partial_desparsified_lasso_inference_output ret;
@@ -820,6 +908,7 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   ret.init_criterion_value=PDL.init_criterion_value;
   ret.init_SSR=PDL.init_SSR;
   ret.bhat_1=PDL.bhat_1;
+  ret.bhat_1_unscaled=bhat_1_unscaled;
   ret.init_grid=PDL.init_grid;
   ret.y=PDL.y;
   ret.init_residual=PDL.init_residual;
@@ -854,6 +943,7 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   ret.q=q;
   ret.z_quantiles=z_quantiles;
   ret.intervals=intervals;
+  ret.intervals_unscaled=intervals_unscaled;
   ret.joint_chi2_stat=joint_chi2_stat;
   ret.chi2_quantiles=chi2_quantiles;
   return ret;
@@ -887,10 +977,12 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
 // //' @param R (optional) matrix with number of columns the dimension of H, used to test the null hypothesis R*beta=q (identity matrix as default)
 // //' @param q (optional) vector of size same as the rows of H, used to test the null hypothesis R*beta=q (zeroes by default)
 // [[Rcpp::export(.Rwrap_partial_desparsified_lasso_inference)]]
-List Rwrap_partial_desparsified_lasso_inference(arma::mat& X, arma::colvec& y, arma::uvec& H, bool& init_partial, LogicalVector& nw_partials, arma::vec& init_grid, arma::mat& nw_grids, int& init_selection_type, arma::vec& nw_selection_types,
-                                                double& init_nonzero_limit, arma::vec& nw_nonzero_limits, double& init_opt_threshold, arma::vec& nw_opt_thresholds, int& init_opt_type, arma::vec& nw_opt_types,
-                                                double& LRVtrunc, double& T_multiplier, NumericVector& alphas, arma::mat& R, arma::vec& q){
-  partial_desparsified_lasso_inference_output PDLI=partial_desparsified_lasso_inference(X, y, H, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
+List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials,
+                                                const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
+                                                const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types,
+                                                const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q){
+  partial_desparsified_lasso_inference_output PDLI=partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials,
+                                                                                        init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                                                         init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
                                                                                         LRVtrunc, T_multiplier, alphas, R, q);
   List misc=List::create(Named("N")=PDLI.N,
@@ -937,6 +1029,7 @@ List Rwrap_partial_desparsified_lasso_inference(arma::mat& X, arma::colvec& y, a
                               Named("q")=PDLI.q,
                               Named("z_quantiles")=PDLI.z_quantiles,
                               Named("intervals")=PDLI.intervals,
+                              Named("intervals_unscaled")=PDLI.intervals_unscaled,
                               Named("joint_chi2_stat")=PDLI.joint_chi2_stat,
                               Named("chi2_quantiles")=PDLI.chi2_quantiles
   );
@@ -945,6 +1038,7 @@ List Rwrap_partial_desparsified_lasso_inference(arma::mat& X, arma::colvec& y, a
                       Named("nw")=nw,
                       Named("inference")=inference,
                       Named("bhat_1")=PDLI.bhat_1,
+                      Named("bhat_1_unscaled")=PDLI.bhat_1_unscaled,
                       Named("gammahats")=PDLI.gammahats,
                       Named("Gammahat")=PDLI.Gammahat,
                       Named("Upsilonhat_inv")=PDLI.Upsilonhat_inv,
