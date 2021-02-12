@@ -25,7 +25,7 @@ The package contains one function (also called "desla"). For details on how to u
 An example of how the desla function can be used:
 ``` r
 X<-matrix(rnorm(100*100), nrow=100)
-y<-X[,1:4]%*%c(1,2,3,4)+rnorm(100)
+y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
 H<-c(1, 2, 3, 4)
 d<-desla(X, y, H)
 ```
