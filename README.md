@@ -17,7 +17,7 @@ After installation, the package can be loaded in the standard way:
 ``` r
 library(desla)
 ```
-##Usage
+## Usage
 The package contains one function (also called "desla"). For details on how to use it, you can access the function documentation with the command:
 ``` r
 ?desla
