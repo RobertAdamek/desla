@@ -11,21 +11,19 @@
 #' @param gridsize (optional) integer, how many different lambdas there should be in both inital and nodewise grids (100 by default)
 #' @param init_grid (optional) vector, containing user specified initial grid
 #' @param nw_grids (optional) matrix with number of rows the size of \code{H}, rows containing user specified grids for the nodewise regressions
-#' @param init_selection_type (optional) integer, how should lambda be selected in the inital regression, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)
-#' @param nw_selection_types (optional) inteter vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (all 4s by default)
+#' @param init_selection_type (optional) integer, how should lambda be selected in the inital regression, 1=BIC, 2=AIC, 3=EBIC (1 by default)
+#' @param nw_selection_types (optional) inteter vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC (all 1s by default)
 #' @param init_nonzero_limit (optional) number controlling the maximum number of nonzeros that can be selected in the initial regression (0.5 by default, meaning no more than 0.5*T regressors can have nonzero estimates)
 #' @param nw_nonzero_limits (optional) vector with the dimension of \code{H}, controlling the maximum number of nonzeros that can be selected in the nodewise regressions (0.5s by default)
 #' @param init_opt_threshold (optional) optimization threshold for the coordinate descent algorithm in the inital regression (10^(-4) by default)
 #' @param nw_opt_thresholds (optional) vector with the dimension of \code{H}, optimization thresholds for the coordinate descent algorithm in the nodewise lasso regression (10^(-4)s by default)
 #' @param init_opt_type (optional) integer, which type of coordinate descent algorithm should be used in the inial regression, 1=naive, 2=covariance, 3=adaptive (3 by default)
 #' @param nw_opt_types (optional)inteter vector with the dimension of \code{H}, which type of coordinate descent algorithm should be used in the nodewise regressions, 1=naive, 2=covariance, 3=adaptive (3s by default)
-#' @param LRVtrunc (optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{Tmultiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{LRVtrunc}=0 by default)
-#' @param T_multiplier (optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{Tmultiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{Tmultiplier}=0 by default)
+#' @param LRVtrunc (optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}) (\code{LRVtrunc}=0.2 by default)
+#' @param T_multiplier (optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}) (\code{Tmultiplier}=2 by default)
 #' @param alphas (optional) vector of significance levels (c(0.01,0.05,0.1) by default)
 #' @param R (optional) matrix with number of columns the dimension of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (identity matrix as default)
 #' @param q (optional) vector of size same as the rows of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (zeroes by default)
-#' @param PIconstant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
-#' @param PIprobability (optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
 #' @return Returns a list with the following elements: \cr
 #' \item{\code{bhat_scaled}}{desparsified lasso estimates for the parameters indexed by \code{H}. These estimates are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{bhat}}
 #' \item{\code{bhat}}{desparsified lasso estimates for the parameters indexed by \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
@@ -54,7 +52,7 @@
 #' @export
 desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, gridsize=100, init_grid=NA, nw_grids=NA, init_selection_type=NA, nw_selection_types=NA,
                           init_nonzero_limit=NA, nw_nonzero_limits=NA, init_opt_threshold=NA, nw_opt_thresholds=NA, init_opt_type=NA, nw_opt_types=NA,
-                          LRVtrunc=0, T_multiplier=0, alphas=c(0.01,0.05,0.1), R=NA, q=NA, PIconstant=0.8, PIprobability=0.05){
+                          LRVtrunc=0.2, T_multiplier=2, alphas=c(0.01,0.05,0.1), R=NA, q=NA){
   H=H-1 #turns indexes into C++ format
   h=length(H)
 
@@ -86,11 +84,11 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, grid
     }
   }
 
-  if(is.na(init_selection_type)){ #1=BIC, 2=AIC, 3=EBIC, 4=PI
-    init_selection_type=4
+  if(is.na(init_selection_type)){ #1=BIC, 2=AIC, 3=EBIC
+    init_selection_type=1
   }
-  if(is.na(nw_selection_types[1])){ #1=BIC, 2=AIC, 3=EBIC, 4=PI
-    nw_selection_types=rep(4, h)
+  if(is.na(nw_selection_types[1])){ #1=BIC, 2=AIC, 3=EBIC
+    nw_selection_types=rep(1, h)
   }else if(length(nw_selection_types)==1){
     nw_selection_types=rep(nw_selection_types, h)
   }else if(length(nw_selection_types)!=length(H)){
@@ -150,7 +148,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, grid
 
   PDLI=.Rwrap_partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                  LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability)
+                                                  LRVtrunc, T_multiplier, alphas, R, q)
   CInames=rep("",2*length(alphas)+1)
   CInames[length(alphas)+1]="bhat"
   for(i in 1:length(alphas)){

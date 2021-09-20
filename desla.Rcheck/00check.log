@@ -1,0 +1,9 @@
+* using log directory 'C:/Users/skron/Documents/R/desla/desla.Rcheck'
+* using R version 4.0.2 (2020-06-22)
+* using platform: x86_64-w64-mingw32 (64-bit)
+* using session charset: ISO8859-1
+* checking for file 'desla/DESCRIPTION' ... ERROR
+Required field missing or empty:
+  'Author'
+* DONE
+Status: 1 ERROR

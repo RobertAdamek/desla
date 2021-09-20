@@ -23,13 +23,11 @@ desla(
   nw_opt_thresholds = NA,
   init_opt_type = NA,
   nw_opt_types = NA,
-  LRVtrunc = 0,
-  T_multiplier = 0,
+  LRVtrunc = 0.2,
+  T_multiplier = 2,
   alphas = c(0.01, 0.05, 0.1),
   R = NA,
-  q = NA,
-  PIconstant = 0.8,
-  PIprobability = 0.05
+  q = NA
 )
 }
 \arguments{
@@ -53,9 +51,9 @@ desla(
 
 \item{nw_grids}{(optional) matrix with number of rows the size of \code{H}, rows containing user specified grids for the nodewise regressions}
 
-\item{init_selection_type}{(optional) integer, how should lambda be selected in the inital regression, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
+\item{init_selection_type}{(optional) integer, how should lambda be selected in the inital regression, 1=BIC, 2=AIC, 3=EBIC (1 by default)}
 
-\item{nw_selection_types}{(optional) inteter vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (all 4s by default)}
+\item{nw_selection_types}{(optional) inteter vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC (all 1s by default)}
 
 \item{init_nonzero_limit}{(optional) number controlling the maximum number of nonzeros that can be selected in the initial regression (0.5 by default, meaning no more than 0.5*T regressors can have nonzero estimates)}
 
@@ -69,26 +67,22 @@ desla(
 
 \item{nw_opt_types}{(optional)inteter vector with the dimension of \code{H}, which type of coordinate descent algorithm should be used in the nodewise regressions, 1=naive, 2=covariance, 3=adaptive (3s by default)}
 
-\item{LRVtrunc}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{Tmultiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{LRVtrunc}=0 by default)}
+\item{LRVtrunc}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}) (\code{LRVtrunc}=0.2 by default)}
 
-\item{T_multiplier}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{Tmultiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{Tmultiplier}=0 by default)}
+\item{T_multiplier}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}) (\code{Tmultiplier}=2 by default)}
 
 \item{alphas}{(optional) vector of significance levels (c(0.01,0.05,0.1) by default)}
 
 \item{R}{(optional) matrix with number of columns the dimension of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (identity matrix as default)}
 
 \item{q}{(optional) vector of size same as the rows of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (zeroes by default)}
-
-\item{PIconstant}{(optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
-
-\item{PIprobability}{(optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
 }
 \value{
 Returns a list with the following elements: \cr
-\item{\code{bhat_scaled}}{desparsified lasso estimates for the parameters indexed by \code{H}. These estimates are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{bhat}}
-\item{\code{bhat}}{desparsified lasso estimates for the parameters indexed by \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
-\item{\code{intervals_scaled}}{matrix containing the confidence intervals for parameters indexed in \code{H}, for significance levels given in \code{alphas}. These are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{intervals}}
-\item{\code{intervals}}{matrix containing the confidence intervals for parameters indexed in \code{H},unscaled to be in the original scale of \code{y} and \code{X}}
+\item{\code{bhat}}{desparsified lasso estimates for the parameters indexed by \code{H}. These estimates are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{bhat_unscaled}}
+\item{\code{bhat_unscaled}}{desparsified lasso estimates for the parameters indexed by \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
+\item{\code{intervals}}{matrix containing the confidence intervals for parameters indexed in \code{H}, for significance levels given in \code{alphas}. These are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{intervals_unscaled}}
+\item{\code{intervals_unscaled}}{matrix containing the confidence intervals for parameters indexed in \code{H},unscaled to be in the original scale of \code{y} and \code{X}}
 \item{\code{joint_chi2_stat}}{test statistic for hull hypothesis \code{R}*beta=\code{q}, asymptotically chi squared distributed}
 \item{\code{chi2_critical_values}}{critical values of the chi squared distribution with degrees of freedom corresponding to the joint test \code{R}*beta=\code{q}, for significance levels given in \code{alphas}}
 \item{\code{betahat}}{lasso estimates from the inital regression of \code{y} on \code{X}}

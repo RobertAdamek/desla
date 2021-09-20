@@ -1,0 +1,21 @@
+Package: desla
+Type: Package
+Title: Desparsified Lasso
+Version: 0.1.3
+Author@R: c( person("Robert", "Adamek",
+        email="robertadamek94@gmail.com", role=c("cre", "aut")),
+        person("Stephan", "Smeekes", email =
+        "s.smeekes@maastrichtuniversity.nl", role = "aut"),
+        person("Ines", "Wilms", email =
+        "i.wilms@maastrichtuniversity.nl", role = "aut") )
+Maintainer: Robert Adamek <robertadamek94@gmail.com>
+Description: Calculates the desparsified lasso as originally introduced in van de Geer et al. (2014), and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in Adamek et al. (2020).
+License: GPL (>=2)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1
+LinkingTo: Rcpp, RcppArmadillo
+Imports: Rcpp, Rdpack
+RdMacros: Rdpack
+NeedsCompilation: yes
+Packaged: 2021-04-15 17:10:15 UTC; skron

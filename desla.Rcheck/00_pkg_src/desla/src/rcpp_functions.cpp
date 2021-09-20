@@ -465,59 +465,31 @@ arma::mat coordinate_descent_covariance(const arma::mat& X, const arma::colvec& 
   }
   return betahat_mat;
 }
-double Andrews91_truncation(const mat& What, const unsigned int& T, const unsigned int& h){
-  arma::vec rhos(h), variances(h);
-  arma::vec y_T(T-1), y_Tm1(T-1), constant(T-1,fill::ones), residual(T-1);
-  arma::mat X_T(T-1,2);
-  arma::vec beta(2);
-  for(unsigned int i=0; i<h; i++){
-    y_T=What.submat(1,i,T-1,i);
-    y_Tm1=What.submat(0,i,T-2,i);
-    X_T=join_horiz(constant,y_Tm1);
-    beta=inv(X_T.t()*X_T)*X_T.t()*y_T;
-    residual=y_T-X_T*beta;
-    rhos(i)=beta(1);
-    variances(i)=as_scalar(residual.t()*residual)/double(double(T)-2.0);
-  }
-  double numerator=0, denominator=0;
-  for(unsigned int i=0; i<h; i++){
-    numerator+=4*pow(rhos(i),2)*pow(variances(i),2)/double(pow(1-rhos(i),6)*pow(1+rhos(i),2));
-    denominator+=pow(variances(i),2)/double(pow(1-rhos(i),4));
-  }
-  double alphahat1=numerator/double(denominator);
-  double S_T=1.1447*pow(alphahat1*double(T),double(1.0/double(3.0)));
-  return S_T;
-}
 
-mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsigned int& N, const unsigned int& T, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
-  mat Omegahat(h,h,fill::zeros);
-  vec uhat=init_residual;
-  mat vhat=nw_residuals;
-  mat What(T,h);
+arma::mat LRVestimator(const arma::vec& init_residual, const arma::mat& nw_residuals, const unsigned int& N, const unsigned int& T, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
+  arma::mat Omegahat(h,h,fill::zeros);
+  unsigned int Q_T=ceil(pow(T_multiplier*double(T),LRVtrunc));
+  arma::vec uhat=init_residual;
+  arma::mat vhat=nw_residuals;
+  arma::mat What(T,h);
   for(unsigned int a=0;a<h;a++){
     What.col(a)=uhat%vhat.col(a);
   }
-  unsigned int Q_T;
-  if(LRVtrunc==0 && T_multiplier==0){//If both the T_multiplier and LRVtrunc are 0, do a data-driven choice of tuning parameter
-    Q_T=std::ceil(Andrews91_truncation(What, T, h));
-  }else{
-    Q_T=std::ceil(pow(T_multiplier*double(T),LRVtrunc));
-  }
-  vec Whatbar=mean(What,0).as_col();
+  arma::vec Whatbar=mean(What,0).as_col();
   //this is not memory efficient, I don't need all the xi_l^(j,k) at once
   cube xi(h,h,Q_T);
   for(unsigned int a=0;a<h;a++){
     for(unsigned int b=0;b<h;b++){
       for(unsigned int l=0;l<=Q_T-1;l++){
         //I think I need to keep redefining them since their sizes change
-        vec W_j=What.submat(l,a,(T-1),a);
-        vec W_kminusl=What.submat(0,b,(T-l-1),b);
+        arma::vec W_j=What.submat(l,a,(T-1),a);
+        arma::vec W_kminusl=What.submat(0,b,(T-l-1),b);
         xi(a,b,l)=as_scalar( (W_j-as_scalar(Whatbar[a])).t()*(W_kminusl-as_scalar(Whatbar[b])) )/(T-l);
       }
     }
   }
   //build the lower triangular part of Omegahat
-  vec kernel(Q_T);
+  arma::vec kernel(Q_T);
   kernel(0)=0; //sort out the calculation of the terms for l>=1 with a loop, because the first element is treated differently
   if(Q_T>1){
     for(double l=1;l<Q_T;l++){
@@ -526,8 +498,8 @@ mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsign
   }
   for(unsigned int a=0;a<h;a++){
     for(unsigned int b=0;b<=a;b++){
-      vec xijk=xi.tube(a,b);
-      vec xikj=xi.tube(b,a);
+      arma::vec xijk=xi.tube(a,b);
+      arma::vec xikj=xi.tube(b,a);
       Omegahat(b,a)=Omegahat(a,b)=xijk(0)+as_scalar( kernel.t()*(xijk+xikj) );
     }
   }
@@ -707,77 +679,8 @@ partial_lasso_output partial_lasso(const arma::mat& X, const arma::colvec& y, co
   return(ret);
 }
 
-selection_output selectPI(const mat& betahats, const mat& X, const vec& y, const vec& grid, const unsigned int& N, const unsigned int& T, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha){
-  unsigned int K=15; //max iterations
-  double improvement_threshold=0.01; //if the % change in lambda is less than this, stop iterating
-  unsigned int B=1000; //how many simulations are used to estimate the quantiles of the gaussian maximum
-  partial_lasso_output PLO;
-  double ybar=mean(y);
-  arma::vec uhat= y-ybar;
-  double lambda_old;
-  lambda_old=grid(0);
-  double lambda;
-  arma::mat LRCovariance;
-  arma::vec Gmax(B);
-  arma::mat Gs;
-  arma::vec Gmeans(N);
-  double cutoff;
-  arma::vec lambda_as_vec(1);
-  arma::uvec H(1); H(0)=0;
-  arma::vec eigval(N);
-  arma::mat eigvec(N,N);
-  arma::mat sqrt_cov(N,N);
-  arma::mat sqrt_diag_eigval(N,N,fill::zeros);
-  arma::mat random_gaussians=randn(N,B);
-  unsigned int iteration=K;
-  //loop where we iterate to find the best lambda
-  for(unsigned int k=0; k<K; k++){
-    LRCovariance=LRVestimator(uhat, X, N, T, N, 0.5, 2); //get an estimate for the long run covariance matrix
-    eig_sym(eigval, eigvec, LRCovariance);
-    for(unsigned int i=0; i<N; i++){
-      sqrt_diag_eigval(i,i)=sqrt(max(0.0,eigval(i))); //negative eigenvalues replaced by 0
-    }
-    sqrt_cov=eigvec*sqrt_diag_eigval;
-    Gs=sqrt_cov*randn(N,B); //generate the correlated gaussians
-    for(unsigned int b=0; b<B; b++){
-      Gmax(b)=max(abs(Gs.col(b)));
-    }
-    Gmax=sort(Gmax);
-    cutoff=Gmax(B*(1-alpha)); //1-alpha quantile of the randomly generated data
-    lambda=c*cutoff/double(sqrt(double(T))); ///not yet multiplying by 4 here
-    if(abs(lambda-lambda_old)/lambda_old<improvement_threshold){ //Check if the improvement is big enough
-      iteration=k;
-      k=K;
-    }
-    lambda_as_vec(0)=lambda;
-    PLO=partial_lasso(X, y, H, false, lambda_as_vec, pow(10,-4), 3);
-    uhat=y-X*PLO.betahats;
-    lambda_old=lambda;
-  }
-  //finding the equivalent of lambda pos
-  unsigned int pos=0;
-  for(unsigned int i=0;i<gridsize;i++){
-    if(grid(i)<lambda){
-      i=gridsize;//end the loop
-    }else{
-      pos++;
-    }
-  }
-  selection_output ret;
-  ret.betahat=PLO.betahats;
-  ret.criterion_value=iteration;
-  ret.lambda=min(grid(0),lambda);
-  ret.lambda_pos=pos;
-  ret.nonzero=std::count_if(PLO.betahats.begin(), PLO.betahats.end(), [](double j){return j!=0;});
-  ret.nonzero_limit=0;
-  ret.residual=uhat;
-  ret.selection_type=4;
-  ret.SSR=as_scalar(uhat.t()*uhat);
-  return ret;
-}
-
 lasso_selected_output lasso_selected(const arma::mat& X, const arma::colvec& y, const arma::vec& grid, const int& selection_type, const double& nonzero_limit,
-                                     const double& opt_threshold, const int& opt_type, const double& PIconstant, const double& PIprobability){
+                                     const double& opt_threshold, const int& opt_type){
   lasso_output L=lasso(X, y, grid, opt_threshold, opt_type);
   selection_output S;
   switch(selection_type) {
@@ -789,9 +692,6 @@ lasso_selected_output lasso_selected(const arma::mat& X, const arma::colvec& y, 
     break;
   case 3: //"EBIC"
     S=selectEBIC(L.betahats, X, y, grid, L.N, L.T, L.gridsize,nonzero_limit);
-    break;
-  case 4: //"PI"
-    S=selectPI(L.betahats, X, y, grid, L.N, L.T, L.gridsize,nonzero_limit, PIconstant, PIprobability);
     break;
   default:
     stop("Warning: Invalid selection_type");
@@ -817,7 +717,7 @@ lasso_selected_output lasso_selected(const arma::mat& X, const arma::colvec& y, 
 }
 
 partial_lasso_selected_output partial_lasso_selected(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& partial, const arma::vec& grid, const int& selection_type, const double& nonzero_limit,
-                                                     const double& opt_threshold, const int& opt_type, const double& PIconstant, const double& PIprobability){
+                                                     const double& opt_threshold, const int& opt_type){
   partial_lasso_output PL=partial_lasso(X, y, H, partial, grid, opt_threshold, opt_type);
   selection_output S;
   switch(selection_type) {
@@ -829,9 +729,6 @@ partial_lasso_selected_output partial_lasso_selected(const arma::mat& X, const a
     break;
   case 3: //"EBIC"
     S=selectEBIC(PL.betahats, X, y, grid, PL.N, PL.T, PL.gridsize,nonzero_limit);
-    break;
-  case 4: //"PI"
-    S=selectPI(PL.betahats, X, y, grid, PL.N, PL.T, PL.gridsize,nonzero_limit, PIconstant, PIprobability);
     break;
   default:
     stop("Warning: Invalid selection_type");
@@ -866,11 +763,11 @@ partial_lasso_selected_output partial_lasso_selected(const arma::mat& X, const a
 
 partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids,
                                                              const int& init_selection_type, const arma::vec& nw_selection_types,const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits,
-                                                             const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types, const double& PIconstant, const double& PIprobability){
+                                                             const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types){
 
 
   partial_lasso_selected_output init_L=partial_lasso_selected(X, y, H, init_partial, init_grid, init_selection_type, init_nonzero_limit,
-                                                              init_opt_threshold, init_opt_type, PIconstant, PIprobability);
+                                                              init_opt_threshold, init_opt_type);
   unsigned int h=init_L.h;
   unsigned int N=init_L.N;
   unsigned int T=init_L.T;
@@ -899,7 +796,7 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
     nw_opt_threshold=nw_opt_thresholds(i);
     nw_opt_type=nw_opt_types(i);
     nw_L=partial_lasso_selected(Xminusj, x_j, nw_H, nw_partial, nw_grid, nw_selection_type, nw_nonzero_limit,
-                                nw_opt_threshold, nw_opt_type, PIconstant, PIprobability);
+                                nw_opt_threshold, nw_opt_type);
     tauhat_j=nw_L.SSR/double(T)+2*nw_L.lambda*sum(abs(nw_L.betahat));
     Upsilonhat_inv(i,i)= 1.0/tauhat_j;
     Gammahat(i,j)= 1;
@@ -966,10 +863,10 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
 partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials,
                                                                                  const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
                                                                                  const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types,
-                                                                                 const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability){
+                                                                                 const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q){
   standardize_output s=standardize(X, y, demean, scale);
   partial_desparsified_lasso_output PDL=partial_desparsified_lasso(s.X_scaled, s.y_scaled, H, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
-                                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types, PIconstant, PIprobability);
+                                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types);
   arma::vec bhat_1_unscaled=unscale(s, PDL.bhat_1, H, demean, scale);
   arma::mat Omegahat=LRVestimator(PDL.init_residual, PDL.nw_residuals, PDL.N, PDL.T, PDL.h, LRVtrunc, T_multiplier);
   arma::vec z_quantiles=qnorm(alphas/2.0,0.0,1.0,false,false);
@@ -1089,11 +986,11 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
 List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials,
                                                 const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
                                                 const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types,
-                                                const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability){
+                                                const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q){
   partial_desparsified_lasso_inference_output PDLI=partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials,
                                                                                         init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                                                         init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                                                        LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability);
+                                                                                        LRVtrunc, T_multiplier, alphas, R, q);
   List misc=List::create(Named("N")=PDLI.N,
                          Named("T")=PDLI.T,
                          Named("h")=PDLI.h,
