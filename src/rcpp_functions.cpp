@@ -992,7 +992,7 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
     }
   }
   arma::mat intervals_unscaled=intervals;
-  for(unsigned int j=0; j<2*alphas.length()+1; j++){
+  for(int j=0; j<2*alphas.length()+1; j++){
     intervals_unscaled.col(j)=unscale(s, intervals.col(j), H, demean, scale);
   }
   //For the chi2 statistic, the Rbhat-q component should be calculated with a properly scaled q, such that the scale of Rbhat matches the scale of the hypothesized value
