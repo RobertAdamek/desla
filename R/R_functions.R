@@ -77,7 +77,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, grid
   }
 
   if(is.na(init_grid) || is.na(nw_grids)){
-    g=.Rwrap_build_gridsXy(nrow(X), ncol(X), gridsize, X, y, H)
+    g=.Rwrap_build_gridsXy(nrow(X), ncol(X), gridsize, X, y, H, demean, scale)
     if(is.na(init_grid)){
       init_grid=g$init_grid
     }

@@ -46,8 +46,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // Rwrap_build_gridsXy
-List Rwrap_build_gridsXy(unsigned int& T, unsigned int N, unsigned int& size, arma::mat& X, arma::vec& y, arma::uvec& H);
-RcppExport SEXP _desla_Rwrap_build_gridsXy(SEXP TSEXP, SEXP NSEXP, SEXP sizeSEXP, SEXP XSEXP, SEXP ySEXP, SEXP HSEXP) {
+List Rwrap_build_gridsXy(unsigned int& T, unsigned int N, unsigned int& size, arma::mat& X, arma::vec& y, arma::uvec& H, bool& demean, bool& scale);
+RcppExport SEXP _desla_Rwrap_build_gridsXy(SEXP TSEXP, SEXP NSEXP, SEXP sizeSEXP, SEXP XSEXP, SEXP ySEXP, SEXP HSEXP, SEXP demeanSEXP, SEXP scaleSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -57,14 +57,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat& >::type X(XSEXP);
     Rcpp::traits::input_parameter< arma::vec& >::type y(ySEXP);
     Rcpp::traits::input_parameter< arma::uvec& >::type H(HSEXP);
-    rcpp_result_gen = Rcpp::wrap(Rwrap_build_gridsXy(T, N, size, X, y, H));
+    Rcpp::traits::input_parameter< bool& >::type demean(demeanSEXP);
+    Rcpp::traits::input_parameter< bool& >::type scale(scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(Rwrap_build_gridsXy(T, N, size, X, y, H, demean, scale));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
     {"_desla_Rwrap_partial_desparsified_lasso_inference", (DL_FUNC) &_desla_Rwrap_partial_desparsified_lasso_inference, 24},
-    {"_desla_Rwrap_build_gridsXy", (DL_FUNC) &_desla_Rwrap_build_gridsXy, 6},
+    {"_desla_Rwrap_build_gridsXy", (DL_FUNC) &_desla_Rwrap_build_gridsXy, 8},
     {NULL, NULL, 0}
 };
 

@@ -5,7 +5,7 @@
     .Call(`_desla_Rwrap_partial_desparsified_lasso_inference`, X, y, H, demean, scale, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types, init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types, LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability)
 }
 
-.Rwrap_build_gridsXy <- function(T, N, size, X, y, H) {
-    .Call(`_desla_Rwrap_build_gridsXy`, T, N, size, X, y, H)
+.Rwrap_build_gridsXy <- function(T, N, size, X, y, H, demean, scale) {
+    .Call(`_desla_Rwrap_build_gridsXy`, T, N, size, X, y, H, demean, scale)
 }
 
