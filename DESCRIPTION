@@ -1,7 +1,7 @@
 Package: desla
 Type: Package
 Title: Desparsified Lasso
-Version: 0.1.4
+Version: 0.2.0
 Authors@R: c(
     person("Robert", "Adamek", email="robertadamek94@gmail.com", role=c("cre", "aut")),
     person("Stephan", "Smeekes", email = "s.smeekes@maastrichtuniversity.nl", role = "aut"),

@@ -29,7 +29,10 @@ desla(
   R = NA,
   q = NA,
   PIconstant = 0.8,
-  PIprobability = 0.05
+  PIprobability = 0.05,
+  manual_Thetahat_ = NULL,
+  manual_Upsilonhat_inv_ = NULL,
+  manual_nw_residuals_ = NULL
 )
 }
 \arguments{
@@ -82,6 +85,12 @@ desla(
 \item{PIconstant}{(optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
 
 \item{PIprobability}{(optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
+
+\item{manual_Thetahat_}{(optional) matrix with rows the size of H and columns the number of regressors. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)}
+
+\item{manual_Upsilonhat_inv_}{(optional) matrix with rows and columns the size of H. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)}
+
+\item{manual_nw_residuals_}{(optional) matrix with rows equal to the sample size and columns the size of H, containing the residuals from the nodewise regressions. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)}
 }
 \value{
 Returns a list with the following elements: \cr
@@ -96,6 +105,8 @@ Returns a list with the following elements: \cr
 \item{\code{Upsilonhat_inv}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
 \item{\code{Thetahat}}{approximate inverse of (X'X)/T, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
 \item{\code{Omegahat}}{long run covariance matrix for the variables indexed by \code{H}, for details see \insertCite{adamek2020lasso;textual}{desla}}
+\item{\code{init_residual}}{vector of residuals from the initial lasso regression}
+\item{\code{nw_residuals}}{matrix of residuals from the nodewise regessions}
 \item{\code{init_grid}}{redundant output, returning the function input \code{init_grid}}
 \item{\code{nw_grids}}{redundant output, returning the function input \code{nw_grids}}
 \item{\code{init_lambda}}{value of lambda that was selected in the inital lasso regression}

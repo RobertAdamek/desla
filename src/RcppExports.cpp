@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // Rwrap_partial_desparsified_lasso_inference
-List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types, const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types, const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability);
-RcppExport SEXP _desla_Rwrap_partial_desparsified_lasso_inference(SEXP XSEXP, SEXP ySEXP, SEXP HSEXP, SEXP demeanSEXP, SEXP scaleSEXP, SEXP init_partialSEXP, SEXP nw_partialsSEXP, SEXP init_gridSEXP, SEXP nw_gridsSEXP, SEXP init_selection_typeSEXP, SEXP nw_selection_typesSEXP, SEXP init_nonzero_limitSEXP, SEXP nw_nonzero_limitsSEXP, SEXP init_opt_thresholdSEXP, SEXP nw_opt_thresholdsSEXP, SEXP init_opt_typeSEXP, SEXP nw_opt_typesSEXP, SEXP LRVtruncSEXP, SEXP T_multiplierSEXP, SEXP alphasSEXP, SEXP RSEXP, SEXP qSEXP, SEXP PIconstantSEXP, SEXP PIprobabilitySEXP) {
+List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types, const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types, const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability, Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_);
+RcppExport SEXP _desla_Rwrap_partial_desparsified_lasso_inference(SEXP XSEXP, SEXP ySEXP, SEXP HSEXP, SEXP demeanSEXP, SEXP scaleSEXP, SEXP init_partialSEXP, SEXP nw_partialsSEXP, SEXP init_gridSEXP, SEXP nw_gridsSEXP, SEXP init_selection_typeSEXP, SEXP nw_selection_typesSEXP, SEXP init_nonzero_limitSEXP, SEXP nw_nonzero_limitsSEXP, SEXP init_opt_thresholdSEXP, SEXP nw_opt_thresholdsSEXP, SEXP init_opt_typeSEXP, SEXP nw_opt_typesSEXP, SEXP LRVtruncSEXP, SEXP T_multiplierSEXP, SEXP alphasSEXP, SEXP RSEXP, SEXP qSEXP, SEXP PIconstantSEXP, SEXP PIprobabilitySEXP, SEXP manual_Thetahat_SEXP, SEXP manual_Upsilonhat_inv_SEXP, SEXP manual_nw_residuals_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -41,7 +41,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type q(qSEXP);
     Rcpp::traits::input_parameter< const double& >::type PIconstant(PIconstantSEXP);
     Rcpp::traits::input_parameter< const double& >::type PIprobability(PIprobabilitySEXP);
-    rcpp_result_gen = Rcpp::wrap(Rwrap_partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types, init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types, LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability));
+    Rcpp::traits::input_parameter< Nullable<NumericMatrix> >::type manual_Thetahat_(manual_Thetahat_SEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericMatrix> >::type manual_Upsilonhat_inv_(manual_Upsilonhat_inv_SEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericMatrix> >::type manual_nw_residuals_(manual_nw_residuals_SEXP);
+    rcpp_result_gen = Rcpp::wrap(Rwrap_partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types, init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types, LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability, manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -65,7 +68,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_desla_Rwrap_partial_desparsified_lasso_inference", (DL_FUNC) &_desla_Rwrap_partial_desparsified_lasso_inference, 24},
+    {"_desla_Rwrap_partial_desparsified_lasso_inference", (DL_FUNC) &_desla_Rwrap_partial_desparsified_lasso_inference, 27},
     {"_desla_Rwrap_build_gridsXy", (DL_FUNC) &_desla_Rwrap_build_gridsXy, 8},
     {NULL, NULL, 0}
 };

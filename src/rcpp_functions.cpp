@@ -820,7 +820,8 @@ partial_lasso_selected_output partial_lasso_selected(const arma::mat& X, const a
 
 partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids,
                                                              const int& init_selection_type, const arma::vec& nw_selection_types,const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits,
-                                                             const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types, const double& PIconstant, const double& PIprobability){
+                                                             const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types, const double& PIconstant, const double& PIprobability,
+                                                             Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_){
 
 
   partial_lasso_selected_output init_L=partial_lasso_selected(X, y, H, init_partial, init_grid, init_selection_type, init_nonzero_limit,
@@ -839,37 +840,64 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
   arma::uvec minusj, Hminusj, nw_H;
   arma::mat nw_residuals(T,h), Thetahat(h,N, fill::zeros), Upsilonhat_inv(h,h, fill::zeros), gammahats(N-1,h), Gammahat(h,N, fill::zeros), Xminusj(T,N-1);
   partial_lasso_selected_output nw_L;
-  for(i=0;i<h;i++){
-    j=H(i);
-    x_j=X.col(j);
-    minusj=linspace<arma::uvec>(0,N-1,N); minusj.shed_row(j);
-    Xminusj=X.cols(minusj);
-    Hminusj=H; Hminusj.shed_row(i);
-    nw_H=unique_match(minusj, Hminusj);
-    nw_grid=(nw_grids.row(i)).t();
-    nw_partial=nw_partials(i);
-    nw_selection_type=nw_selection_types(i);
-    nw_nonzero_limit=nw_nonzero_limits(i);
-    nw_opt_threshold=nw_opt_thresholds(i);
-    nw_opt_type=nw_opt_types(i);
-    nw_L=partial_lasso_selected(Xminusj, x_j, nw_H, nw_partial, nw_grid, nw_selection_type, nw_nonzero_limit,
-                                nw_opt_threshold, nw_opt_type, PIconstant, PIprobability);
-    tauhat_j=nw_L.SSR/double(T)+2*nw_L.lambda*sum(abs(nw_L.betahat));
-    Upsilonhat_inv(i,i)= 1.0/tauhat_j;
-    Gammahat(i,j)= 1;
-    i_=i;
-    Gammahat.submat(i_,minusj)= -(nw_L.betahat).t();
+  //If we manually provide ALL the necessary nodewise components, we don't need to estimate them any more
+  if(manual_Thetahat_.isNotNull() && manual_Upsilonhat_inv_.isNotNull() && manual_nw_residuals_.isNotNull()){
+    NumericMatrix temp_manual_Thetahat(manual_Thetahat_);  // conversion from Nullable<NumericMatrix> to NumericMatrix
+    Thetahat=as<arma::mat>(temp_manual_Thetahat); //conversion from NumericMatrix to arma::mat
 
-    gammahats.col(i)=nw_L.betahat;
-    nw_gridsizes(i)=nw_L.gridsize;
-    nw_lambdas(i)=nw_L.lambda;
-    nw_criterion_values(i)=nw_L.criterion_value;
-    nw_SSRs(i)=nw_L.SSR;
-    nw_residuals.col(i)=nw_L.residual;
-    nw_lambda_poss(i)=nw_L.lambda_pos;
-    nw_nonzeros(i)=nw_L.nonzero;
+    NumericMatrix temp_manual_Upsilonhat_inv(manual_Upsilonhat_inv_);   // conversion from Nullable<NumericMatrix> to NumericMatrix
+    Upsilonhat_inv=as<arma::mat>(temp_manual_Upsilonhat_inv); //conversion from NumericMatrix to arma::mat
+
+    NumericMatrix temp_manual_nw_residuals(manual_nw_residuals_); // conversion from Nullable<NumericMatrix> to NumericMatrix
+    nw_residuals=as<arma::mat>(temp_manual_nw_residuals); //conversion from NumericMatrix to arma::mat
+  }else{
+    for(i=0;i<h;i++){
+      j=H(i);
+      x_j=X.col(j);
+      minusj=linspace<arma::uvec>(0,N-1,N); minusj.shed_row(j);
+      Xminusj=X.cols(minusj);
+      Hminusj=H; Hminusj.shed_row(i);
+      nw_H=unique_match(minusj, Hminusj);
+      nw_grid=(nw_grids.row(i)).t();
+      nw_partial=nw_partials(i);
+      nw_selection_type=nw_selection_types(i);
+      nw_nonzero_limit=nw_nonzero_limits(i);
+      nw_opt_threshold=nw_opt_thresholds(i);
+      nw_opt_type=nw_opt_types(i);
+      nw_L=partial_lasso_selected(Xminusj, x_j, nw_H, nw_partial, nw_grid, nw_selection_type, nw_nonzero_limit,
+                                  nw_opt_threshold, nw_opt_type, PIconstant, PIprobability);
+      tauhat_j=nw_L.SSR/double(T)+2*nw_L.lambda*sum(abs(nw_L.betahat));
+      Upsilonhat_inv(i,i)= 1.0/tauhat_j;
+      Gammahat(i,j)= 1;
+      i_=i;
+      Gammahat.submat(i_,minusj)= -(nw_L.betahat).t();
+
+      gammahats.col(i)=nw_L.betahat;
+      nw_gridsizes(i)=nw_L.gridsize;
+      nw_lambdas(i)=nw_L.lambda;
+      nw_criterion_values(i)=nw_L.criterion_value;
+      nw_SSRs(i)=nw_L.SSR;
+      nw_residuals.col(i)=nw_L.residual;
+      nw_lambda_poss(i)=nw_L.lambda_pos;
+      nw_nonzeros(i)=nw_L.nonzero;
+    }
+    //If only some of the nodewise components were provided, here they overwrite the ones that were just calculated
+    if(manual_Upsilonhat_inv_.isNotNull()){
+      NumericMatrix temp_manual_Upsilonhat_inv(manual_Upsilonhat_inv_);   // conversion from Nullable<NumericMatrix> to NumericMatrix
+      Upsilonhat_inv=as<arma::mat>(temp_manual_Upsilonhat_inv); //conversion from NumericMatrix to arma::mat
+    }
+    if(manual_nw_residuals_.isNotNull()){
+      NumericMatrix temp_manual_nw_residuals(manual_nw_residuals_); // conversion from Nullable<NumericMatrix> to NumericMatrix
+      nw_residuals=as<arma::mat>(temp_manual_nw_residuals); //conversion from NumericMatrix to arma::mat
+    }
+    if(manual_Thetahat_.isNotNull()){
+      NumericMatrix temp_manual_Thetahat(manual_Thetahat_);  // conversion from Nullable<NumericMatrix> to NumericMatrix
+      Thetahat=as<arma::mat>(temp_manual_Thetahat); //conversion from NumericMatrix to arma::mat
+    }else{
+      Thetahat=Upsilonhat_inv*Gammahat; //Note that this Thetahat can be calculated with the manually provided Upsilonhat_inv
+    }
   }
-  Thetahat=Upsilonhat_inv*Gammahat;
+
   bhat_1=init_L.betahat_1+Thetahat*X.t()*(init_L.residual)/double(T);
 
   partial_desparsified_lasso_output ret;
@@ -920,10 +948,12 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
 partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials,
                                                                                  const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
                                                                                  const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types,
-                                                                                 const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability){
+                                                                                 const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability,
+                                                                                 Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_){
   standardize_output s=standardize(X, y, demean, scale);
   partial_desparsified_lasso_output PDL=partial_desparsified_lasso(s.X_scaled, s.y_scaled, H, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
-                                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types, PIconstant, PIprobability);
+                                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types, PIconstant, PIprobability,
+                                                                   manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_);
   arma::vec bhat_1_unscaled=unscale(s, PDL.bhat_1, H, demean, scale);
   arma::mat Omegahat=LRVestimator(PDL.init_residual, PDL.nw_residuals, PDL.N, PDL.T, PDL.h, LRVtrunc, T_multiplier);
   arma::vec z_quantiles=qnorm(alphas/2.0,0.0,1.0,false,false);
@@ -1014,7 +1044,6 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
 
 
 
-
 //wrapper functions
 
 // //' Calculate the desparsified lasso
@@ -1039,15 +1068,20 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
 // //' @param alphas (optional) vector of significance levels (c(0.01,0.05,0.1) by default)
 // //' @param R (optional) matrix with number of columns the dimension of H, used to test the null hypothesis R*beta=q (identity matrix as default)
 // //' @param q (optional) vector of size same as the rows of H, used to test the null hypothesis R*beta=q (zeroes by default)
+// //' @param manual_Thetahat_ (optional) matrix with rows the size of H and columns the number of regressors. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)
+// //' @param manual_Upsilonhat_inv_ (optional) matrix with rows and columns the size of H. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)
+// //' @param manual_nw_residuals (optional) matrix with rows equal to the sample size and columns the size of H, containing the residuals from the nodewise regressions. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)
 // [[Rcpp::export(.Rwrap_partial_desparsified_lasso_inference)]]
 List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials,
                                                 const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
                                                 const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types,
-                                                const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability){
+                                                const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability,
+                                                Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_){
   partial_desparsified_lasso_inference_output PDLI=partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials,
                                                                                         init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                                                         init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                                                        LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability);
+                                                                                        LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability,
+                                                                                        manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_);
   List misc=List::create(Named("N")=PDLI.N,
                          Named("T")=PDLI.T,
                          Named("h")=PDLI.h,

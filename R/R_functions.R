@@ -26,6 +26,10 @@
 #' @param q (optional) vector of size same as the rows of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (zeroes by default)
 #' @param PIconstant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
 #' @param PIprobability (optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
+#' @param manual_Thetahat_ (optional) matrix with rows the size of H and columns the number of regressors. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)
+#' @param manual_Upsilonhat_inv_ (optional) matrix with rows and columns the size of H. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)
+#' @param manual_nw_residuals_ (optional) matrix with rows equal to the sample size and columns the size of H, containing the residuals from the nodewise regressions. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)
+
 #' @return Returns a list with the following elements: \cr
 #' \item{\code{bhat_scaled}}{desparsified lasso estimates for the parameters indexed by \code{H}. These estimates are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{bhat}}
 #' \item{\code{bhat}}{desparsified lasso estimates for the parameters indexed by \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
@@ -38,6 +42,8 @@
 #' \item{\code{Upsilonhat_inv}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
 #' \item{\code{Thetahat}}{approximate inverse of (X'X)/T, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
 #' \item{\code{Omegahat}}{long run covariance matrix for the variables indexed by \code{H}, for details see \insertCite{adamek2020lasso;textual}{desla}}
+#' \item{\code{init_residual}}{vector of residuals from the initial lasso regression}
+#' \item{\code{nw_residuals}}{matrix of residuals from the nodewise regessions}
 #' \item{\code{init_grid}}{redundant output, returning the function input \code{init_grid}}
 #' \item{\code{nw_grids}}{redundant output, returning the function input \code{nw_grids}}
 #' \item{\code{init_lambda}}{value of lambda that was selected in the inital lasso regression}
@@ -54,10 +60,24 @@
 #' @export
 desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, gridsize=100, init_grid=NA, nw_grids=NA, init_selection_type=NA, nw_selection_types=NA,
                           init_nonzero_limit=NA, nw_nonzero_limits=NA, init_opt_threshold=NA, nw_opt_thresholds=NA, init_opt_type=NA, nw_opt_types=NA,
-                          LRVtrunc=0, T_multiplier=0, alphas=c(0.01,0.05,0.1), R=NA, q=NA, PIconstant=0.8, PIprobability=0.05){
+                          LRVtrunc=0, T_multiplier=0, alphas=c(0.01,0.05,0.1), R=NA, q=NA, PIconstant=0.8, PIprobability=0.05,
+                          manual_Thetahat_=NULL, manual_Upsilonhat_inv_=NULL, manual_nw_residuals_=NULL){
   H=H-1 #turns indexes into C++ format
   h=length(H)
-
+  if(!is.matrix(X)){
+    if(!is.data.frame(X)){
+      warning("X needs to be a matrix or data.frame")
+    }else{
+      X<-as.matrix(X)
+    }
+  }
+  if(!is.matrix(y)){
+    if(!is.data.frame(y) && !is.vector(y)){
+      warning("y needs to be a vector, matrix, or data.frame")
+    }else{
+      y<-as.matrix(y)
+    }
+  }
   check_cols <- apply(X, 2, function(x){max(x) - min(x) == 0})
   if( (demean || scale) && (sum(check_cols)>0) ){
     warning("Constant variable in X, while demean or scale are true. I take demean=scale=FALSE to prevent errors.")
@@ -147,10 +167,29 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, grid
     warning("length of q does not match H")
     q=rep(0, nrow(R))
   }
+  if(!is.null(manual_Thetahat_)){
+    manual_Thetahat_<-as.matrix(manual_Thetahat_)
+    if(nrow(manual_Thetahat_)!=h || ncol(manual_Thetahat_)!=ncol(X)){
+      warning(paste0("manual_Thetahat_ needs to be a ", h,"x", ncol(X),"matrix"))
+    }
+  }
+  if(!is.null(manual_Upsilonhat_inv_)){
+    manual_Upsilonhat_inv_<-as.matrix(manual_Upsilonhat_inv_)
+    if(nrow(manual_Upsilonhat_inv_)!=h || ncol(manual_Upsilonhat_inv_)!=h){
+      warning(paste0("manual_Upsilonhat_inv_ needs to be a ", h,"x", h,"matrix"))
+    }
+  }
+   if(!is.null(manual_nw_residuals_)){
+     manual_nw_residuals_<-as.matrix(manual_nw_residuals_)
+     if(nrow(manual_nw_residuals_)!=nrow(X) || ncol(manual_nw_residuals_)!=h){
+       warning(paste0("manual_nw_residuals_ needs to be a ", nrow(X),"x", h,"matrix"))
+     }
+   }
 
   PDLI=.Rwrap_partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                  LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability)
+                                                  LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability,
+                                                  manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_)
   CInames=rep("",2*length(alphas)+1)
   CInames[length(alphas)+1]="bhat"
   for(i in 1:length(alphas)){
@@ -179,6 +218,8 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, grid
               Upsilonhat_inv=PDLI$Upsilonhat_inv,
               Thetahat=PDLI$Thetahat,
               Omegahat=PDLI$inference$Omegahat,
+              init_residual=PDLI$init$residual,
+              nw_residuals=PDLI$nw$residuals,
               init_grid=PDLI$init$grid,
               nw_grids=PDLI$nw$grids,
               init_lambda=PDLI$init$lambda,
