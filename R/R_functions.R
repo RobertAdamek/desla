@@ -48,8 +48,10 @@
 #' \item{\code{nw_grids}}{redundant output, returning the function input \code{nw_grids}}
 #' \item{\code{init_lambda}}{value of lambda that was selected in the inital lasso regression}
 #' \item{\code{nw_lambdas}}{values of lambdas that were selected in the nodewise lasso regressions}
-#' \item{\code{init_nonzero}}{redundant output, returning the function input \code{init_nonzero}}
-#' \item{\code{nw_nonzeros}}{redundant output, returning the function input \code{nw_nonzeros}}
+#' \item{\code{init_nonzero}}{number on nonzero parameters in the initial lasso regression}
+#' \item{\code{nw_nonzeros}}{vector of nonzero parameters in the nodewise lasso regressions}
+#' \item{\code{init_nonzero_pos}}{vector of indexes of the nonzero parameters in the initial lasso}
+#' \item{\code{nw_nonzero_poss}}{list of vectors for each nodewise regression, giving the indexes of nonzero parameters in the nodewise regressions}
 #' @examples
 #' X<-matrix(rnorm(100*100), nrow=100)
 #' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
@@ -80,7 +82,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, grid
   }
   check_cols <- apply(X, 2, function(x){max(x) - min(x) == 0})
   if( (demean || scale) && (sum(check_cols)>0) ){
-    warning("Constant variable in X, while demean or scale are true. I take demean=scale=FALSE to prevent errors.")
+    warning("constant variable in X, while demean or scale are true, I take demean=scale=FALSE to prevent errors")
     demean<-scale<-F
   }
 
@@ -170,19 +172,19 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, grid
   if(!is.null(manual_Thetahat_)){
     manual_Thetahat_<-as.matrix(manual_Thetahat_)
     if(nrow(manual_Thetahat_)!=h || ncol(manual_Thetahat_)!=ncol(X)){
-      warning(paste0("manual_Thetahat_ needs to be a ", h,"x", ncol(X),"matrix"))
+      warning(paste0("manual_Thetahat_ has incorrect dimensions"))
     }
   }
   if(!is.null(manual_Upsilonhat_inv_)){
     manual_Upsilonhat_inv_<-as.matrix(manual_Upsilonhat_inv_)
     if(nrow(manual_Upsilonhat_inv_)!=h || ncol(manual_Upsilonhat_inv_)!=h){
-      warning(paste0("manual_Upsilonhat_inv_ needs to be a ", h,"x", h,"matrix"))
+      warning(paste0("manual_Upsilonhat_inv_ has incorrect dimensions"))
     }
   }
    if(!is.null(manual_nw_residuals_)){
      manual_nw_residuals_<-as.matrix(manual_nw_residuals_)
      if(nrow(manual_nw_residuals_)!=nrow(X) || ncol(manual_nw_residuals_)!=h){
-       warning(paste0("manual_nw_residuals_ needs to be a ", nrow(X),"x", h,"matrix"))
+       warning(paste0("manual_nw_residuals_ has incorrect dimensions"))
      }
    }
 
@@ -207,6 +209,17 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, grid
   rownames(PDLI$nw$grids)=H
   rownames(PDLI$nw$lambdas)=H
   rownames(PDLI$nw$nonzeros)=H
+  if(!is.null(manual_Thetahat_) && !is.null(manual_Upsilonhat_inv_) && !is.null(manual_nw_residuals_)){ #if all nodewise parts are provided, then the nodewise regressions wont be run
+    init_nonzero_pos<-NULL
+    nw_nonzero_poss<-NULL
+  }else{
+    init_nonzero_pos<-PDLI$init$nonzero_pos+1#puts indexes in R format
+    nw_nonzero_poss<-PDLI$nw$nonzero_poss
+    for(i in 1:length(nw_nonzero_poss)){
+      nw_nonzero_poss[[i]]<-nw_nonzero_poss[[i]]+1 #puts the indexes in R format
+    }
+    names(nw_nonzero_poss)=H
+  }
   return(list(bhat_scaled=PDLI$bhat_1,
               bhat=PDLI$bhat_1_unscaled,
               intervals=PDLI$inference$intervals_unscaled,
@@ -225,5 +238,68 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=T, scale=T, grid
               init_lambda=PDLI$init$lambda,
               nw_lambdas=PDLI$nw$lambdas,
               init_nonzero=PDLI$init$nonzero,
-              nw_nonzeros=PDLI$nw$nonzeros))
+              nw_nonzeros=PDLI$nw$nonzeros,
+              init_nonzero_pos=init_nonzero_pos,
+              nw_nonzero_poss=nw_nonzero_poss))
+}
+
+#' @importFrom Rdpack reprompt
+#' @title High-Dimensional Local Projection
+#' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.
+#' @param r (optional) vector or matrix with \code{T} rows, containing the "slow" vaiables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)
+#' @param x \code{T}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details
+#' @param y \code{T}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details
+#' @param q (optional) vector or matrix with \code{T} rows, containing the "fast" vaiables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)
+#' @param y_predetermined (optional) boolean, true if the response variable \code{y} is predetermined with respect to \code{x}, i.e. cannot react within the same period to the shock. If true, the impulse response at horizon 0 is 0 (false by default)
+#' @param cumulate_y (optional) boolean, true if the impulse response of \code{y} should be cumulated, i.e. using the cumulative sum of \code{y} as the dependent variable (false by default)
+#' @param hmax (optional) integer, the maximum horizon up to which the impulse responses are computed. Should not exceed the \code{T}-\code{lags} (24 by default)
+#' @param lags (optional) integer, the number of lags to be included in the local projection model. Should not exceed \code{T}-\code{hmax}(12 by default)
+#' @param alphas (optional) vector of significance levels (0.05 by default)
+#' @param init_partial (optional) bool, true if the parameter of interest should NOT be penalized (true by default)
+#' @param selection (optional) integer, how should lambda be selected in BOTH the inital and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)
+#' @param PIconstant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
+#' @param progress_bar (optional) boolean, true if a progress bar should be displayed during execution (true by default)
+#' @return Returns a list with the following elements: \cr
+#' \item{\code{intervals}}{matrix containing the point estimates and confidence intervals for the impulse response function, for significance levels given in \code{alphas}}
+#' \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
+#' @examples
+#' X<-matrix(rnorm(100*100), nrow=100)
+#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
+#' h<-HDLP(x=X[,4], y=y, q=X[,-4], hmax=5, lags=1)
+#' @references
+#' \insertAllCited{}
+#' @export
+HDLP=function(r=NULL, x, y, q=NULL,
+                          y_predetermined=F,cumulate_y=F, hmax=24,
+                          lags=12, alphas=0.05, init_partial=T, selection=4, PIconstant=0.8,
+                          progress_bar=T){
+  if(!is.matrix(x)){
+    x<-as.matrix(x, ncol=1)
+  }
+  if(!is.matrix(y)){
+    y<-as.matrix(y, ncol=1)
+  }
+  if(!is.null(r) && !is.matrix(r)){
+    r<-as.matrix(r, nrow=nrow(x))
+  }
+  if(!is.null(q) && !is.matrix(q)){
+    q<-as.matrix(q, nrow=nrow(x))
+  }
+  if(!is.matrix(alphas)){
+    alphas<-as.matrix(alphas, ncol=1)
+  }
+
+  LP=.Rcpp_local_projection(r, x, y, q,
+                            y_predetermined,cumulate_y, hmax,
+                            lags,alphas, init_partial, selection, PIconstant,
+                            progress_bar)
+  CInames=rep("",2*length(alphas)+1)
+  CInames[length(alphas)+1]="bhat"
+  for(i in 1:length(alphas)){
+    CInames[i]=paste("lower ", alphas[i], sep="")
+    CInames[2*length(alphas)+2-i]=paste("upper ", alphas[i], sep="")
+  }
+  dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
+  return(list(intervals=LP$intervals,
+              Thetahat=LP$manual_Thetahat))
 }

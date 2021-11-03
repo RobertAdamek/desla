@@ -12,7 +12,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // Rwrap_partial_desparsified_lasso_inference
-List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types, const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types, const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability, Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_);
+List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types, const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types, const double& LRVtrunc, const double& T_multiplier, const NumericVector alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability, Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_);
 RcppExport SEXP _desla_Rwrap_partial_desparsified_lasso_inference(SEXP XSEXP, SEXP ySEXP, SEXP HSEXP, SEXP demeanSEXP, SEXP scaleSEXP, SEXP init_partialSEXP, SEXP nw_partialsSEXP, SEXP init_gridSEXP, SEXP nw_gridsSEXP, SEXP init_selection_typeSEXP, SEXP nw_selection_typesSEXP, SEXP init_nonzero_limitSEXP, SEXP nw_nonzero_limitsSEXP, SEXP init_opt_thresholdSEXP, SEXP nw_opt_thresholdsSEXP, SEXP init_opt_typeSEXP, SEXP nw_opt_typesSEXP, SEXP LRVtruncSEXP, SEXP T_multiplierSEXP, SEXP alphasSEXP, SEXP RSEXP, SEXP qSEXP, SEXP PIconstantSEXP, SEXP PIprobabilitySEXP, SEXP manual_Thetahat_SEXP, SEXP manual_Upsilonhat_inv_SEXP, SEXP manual_nw_residuals_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -36,7 +36,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type nw_opt_types(nw_opt_typesSEXP);
     Rcpp::traits::input_parameter< const double& >::type LRVtrunc(LRVtruncSEXP);
     Rcpp::traits::input_parameter< const double& >::type T_multiplier(T_multiplierSEXP);
-    Rcpp::traits::input_parameter< const NumericVector& >::type alphas(alphasSEXP);
+    Rcpp::traits::input_parameter< const NumericVector >::type alphas(alphasSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type R(RSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type q(qSEXP);
     Rcpp::traits::input_parameter< const double& >::type PIconstant(PIconstantSEXP);
@@ -49,20 +49,43 @@ BEGIN_RCPP
 END_RCPP
 }
 // Rwrap_build_gridsXy
-List Rwrap_build_gridsXy(unsigned int& T, unsigned int N, unsigned int& size, arma::mat& X, arma::vec& y, arma::uvec& H, bool& demean, bool& scale);
+List Rwrap_build_gridsXy(unsigned int T, unsigned int N, unsigned int size, arma::mat X, arma::vec y, arma::uvec H, bool demean, bool scale);
 RcppExport SEXP _desla_Rwrap_build_gridsXy(SEXP TSEXP, SEXP NSEXP, SEXP sizeSEXP, SEXP XSEXP, SEXP ySEXP, SEXP HSEXP, SEXP demeanSEXP, SEXP scaleSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< unsigned int& >::type T(TSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type T(TSEXP);
     Rcpp::traits::input_parameter< unsigned int >::type N(NSEXP);
-    Rcpp::traits::input_parameter< unsigned int& >::type size(sizeSEXP);
-    Rcpp::traits::input_parameter< arma::mat& >::type X(XSEXP);
-    Rcpp::traits::input_parameter< arma::vec& >::type y(ySEXP);
-    Rcpp::traits::input_parameter< arma::uvec& >::type H(HSEXP);
-    Rcpp::traits::input_parameter< bool& >::type demean(demeanSEXP);
-    Rcpp::traits::input_parameter< bool& >::type scale(scaleSEXP);
+    Rcpp::traits::input_parameter< unsigned int >::type size(sizeSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type H(HSEXP);
+    Rcpp::traits::input_parameter< bool >::type demean(demeanSEXP);
+    Rcpp::traits::input_parameter< bool >::type scale(scaleSEXP);
     rcpp_result_gen = Rcpp::wrap(Rwrap_build_gridsXy(T, N, size, X, y, H, demean, scale));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Rcpp_local_projection
+List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const arma::vec& y, Nullable<NumericMatrix> q_, const bool& y_predetermined, const bool& cumulate_y, const unsigned int& hmax, const unsigned int& lags, const NumericVector& alphas, const bool& init_partial, const int& selection, const double& PIconstant, const bool& progress_bar);
+RcppExport SEXP _desla_Rcpp_local_projection(SEXP r_SEXP, SEXP xSEXP, SEXP ySEXP, SEXP q_SEXP, SEXP y_predeterminedSEXP, SEXP cumulate_ySEXP, SEXP hmaxSEXP, SEXP lagsSEXP, SEXP alphasSEXP, SEXP init_partialSEXP, SEXP selectionSEXP, SEXP PIconstantSEXP, SEXP progress_barSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Nullable<NumericMatrix> >::type r_(r_SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericMatrix> >::type q_(q_SEXP);
+    Rcpp::traits::input_parameter< const bool& >::type y_predetermined(y_predeterminedSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type cumulate_y(cumulate_ySEXP);
+    Rcpp::traits::input_parameter< const unsigned int& >::type hmax(hmaxSEXP);
+    Rcpp::traits::input_parameter< const unsigned int& >::type lags(lagsSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type alphas(alphasSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type init_partial(init_partialSEXP);
+    Rcpp::traits::input_parameter< const int& >::type selection(selectionSEXP);
+    Rcpp::traits::input_parameter< const double& >::type PIconstant(PIconstantSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type progress_bar(progress_barSEXP);
+    rcpp_result_gen = Rcpp::wrap(Rcpp_local_projection(r_, x, y, q_, y_predetermined, cumulate_y, hmax, lags, alphas, init_partial, selection, PIconstant, progress_bar));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -70,6 +93,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_desla_Rwrap_partial_desparsified_lasso_inference", (DL_FUNC) &_desla_Rwrap_partial_desparsified_lasso_inference, 27},
     {"_desla_Rwrap_build_gridsXy", (DL_FUNC) &_desla_Rwrap_build_gridsXy, 8},
+    {"_desla_Rcpp_local_projection", (DL_FUNC) &_desla_Rcpp_local_projection, 13},
     {NULL, NULL, 0}
 };
 

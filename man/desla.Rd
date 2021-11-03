@@ -111,8 +111,10 @@ Returns a list with the following elements: \cr
 \item{\code{nw_grids}}{redundant output, returning the function input \code{nw_grids}}
 \item{\code{init_lambda}}{value of lambda that was selected in the inital lasso regression}
 \item{\code{nw_lambdas}}{values of lambdas that were selected in the nodewise lasso regressions}
-\item{\code{init_nonzero}}{redundant output, returning the function input \code{init_nonzero}}
-\item{\code{nw_nonzeros}}{redundant output, returning the function input \code{nw_nonzeros}}
+\item{\code{init_nonzero}}{number on nonzero parameters in the initial lasso regression}
+\item{\code{nw_nonzeros}}{vector of nonzero parameters in the nodewise lasso regressions}
+\item{\code{init_nonzero_pos}}{vector of indexes of the nonzero parameters in the initial lasso}
+\item{\code{nw_nonzero_poss}}{list of vectors for each nodewise regression, giving the indexes of nonzero parameters in the nodewise regressions}
 }
 \description{
 Calculates the desparsified lasso as originally introduced in \insertCite{vandeGeer14;textual}{desla}, and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in \insertCite{adamek2020lasso;textual}{desla}.
