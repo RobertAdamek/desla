@@ -21,13 +21,13 @@ HDLP(
 )
 }
 \arguments{
-\item{r}{(optional) vector or matrix with \code{T} rows, containing the "slow" vaiables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)}
+\item{r}{(optional) vector or matrix with \code{T} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)}
 
 \item{x}{\code{T}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details}
 
 \item{y}{\code{T}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details}
 
-\item{q}{(optional) vector or matrix with \code{T} rows, containing the "fast" vaiables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)}
+\item{q}{(optional) vector or matrix with \code{T} rows, containing the "fast" variables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)}
 
 \item{y_predetermined}{(optional) boolean, true if the response variable \code{y} is predetermined with respect to \code{x}, i.e. cannot react within the same period to the shock. If true, the impulse response at horizon 0 is 0 (false by default)}
 
@@ -41,7 +41,7 @@ HDLP(
 
 \item{init_partial}{(optional) bool, true if the parameter of interest should NOT be penalized (true by default)}
 
-\item{selection}{(optional) integer, how should lambda be selected in BOTH the inital and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
+\item{selection}{(optional) integer, how should lambda be selected in BOTH the initial and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
 
 \item{PIconstant}{(optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
 

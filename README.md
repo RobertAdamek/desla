@@ -8,7 +8,7 @@ To make use of this package, the easiest approach is to first install the devtoo
 install.packages("devtools")
 library(devtools)
 ```
-You can then install the desla package from the github depository by running:
+You can then install the desla package from the GitHub depository by running:
 ``` r
 devtools::install_github("RobertAdamek/desla")
 ```
