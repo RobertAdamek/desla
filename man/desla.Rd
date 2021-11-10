@@ -10,8 +10,8 @@ desla(
   H,
   init_partial = NA,
   nw_partials = NA,
-  demean = T,
-  scale = T,
+  demean = TRUE,
+  scale = TRUE,
   gridsize = 100,
   init_grid = NA,
   nw_grids = NA,
@@ -36,9 +36,9 @@ desla(
 )
 }
 \arguments{
-\item{X}{\code{T}x\code{N} regressor matrix}
+\item{X}{\code{T_}x\code{N} regressor matrix}
 
-\item{y}{\code{T}x1 dependent variable vector}
+\item{y}{\code{T_}x1 dependent variable vector}
 
 \item{H}{indexes of relevant regressors}
 
@@ -60,7 +60,7 @@ desla(
 
 \item{nw_selection_types}{(optional) integer vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (all 4s by default)}
 
-\item{init_nonzero_limit}{(optional) number controlling the maximum number of nonzeros that can be selected in the initial regression (0.5 by default, meaning no more than 0.5*T regressors can have nonzero estimates)}
+\item{init_nonzero_limit}{(optional) number controlling the maximum number of nonzeros that can be selected in the initial regression (0.5 by default, meaning no more than 0.5*T_ regressors can have nonzero estimates)}
 
 \item{nw_nonzero_limits}{(optional) vector with the dimension of \code{H}, controlling the maximum number of nonzeros that can be selected in the nodewise regressions (0.5s by default)}
 
@@ -72,9 +72,9 @@ desla(
 
 \item{nw_opt_types}{(optional)integer vector with the dimension of \code{H}, which type of coordinate descent algorithm should be used in the nodewise regressions, 1=naive, 2=covariance, 3=adaptive (3s by default)}
 
-\item{LRVtrunc}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{Tmultiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{LRVtrunc}=0 by default)}
+\item{LRVtrunc}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T_}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{T_multiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{LRVtrunc}=0 by default)}
 
-\item{T_multiplier}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{Tmultiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{Tmultiplier}=0 by default)}
+\item{T_multiplier}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T_}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{T_multiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{T_multiplier}=0 by default)}
 
 \item{alphas}{(optional) vector of significance levels (c(0.01,0.05,0.1) by default)}
 
@@ -103,7 +103,7 @@ Returns a list with the following elements: \cr
 \item{\code{betahat}}{lasso estimates from the initial regression of \code{y} on \code{X}}
 \item{\code{Gammahat}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
 \item{\code{Upsilonhat_inv}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
-\item{\code{Thetahat}}{approximate inverse of (X'X)/T, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
+\item{\code{Thetahat}}{approximate inverse of (X'X)/T_, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
 \item{\code{Omegahat}}{long run covariance matrix for the variables indexed by \code{H}, for details see \insertCite{adamek2020lasso;textual}{desla}}
 \item{\code{init_residual}}{vector of residuals from the initial lasso regression}
 \item{\code{nw_residuals}}{matrix of residuals from the nodewise regressions}

@@ -9,33 +9,33 @@ HDLP(
   x,
   y,
   q = NULL,
-  y_predetermined = F,
-  cumulate_y = F,
+  y_predetermined = FALSE,
+  cumulate_y = FALSE,
   hmax = 24,
   lags = 12,
   alphas = 0.05,
-  init_partial = T,
+  init_partial = TRUE,
   selection = 4,
   PIconstant = 0.8,
-  progress_bar = T
+  progress_bar = TRUE
 )
 }
 \arguments{
-\item{r}{(optional) vector or matrix with \code{T} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)}
+\item{r}{(optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)}
 
-\item{x}{\code{T}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details}
+\item{x}{\code{T_}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details}
 
-\item{y}{\code{T}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details}
+\item{y}{\code{T_}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details}
 
-\item{q}{(optional) vector or matrix with \code{T} rows, containing the "fast" variables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)}
+\item{q}{(optional) vector or matrix with \code{T_} rows, containing the "fast" variables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)}
 
 \item{y_predetermined}{(optional) boolean, true if the response variable \code{y} is predetermined with respect to \code{x}, i.e. cannot react within the same period to the shock. If true, the impulse response at horizon 0 is 0 (false by default)}
 
 \item{cumulate_y}{(optional) boolean, true if the impulse response of \code{y} should be cumulated, i.e. using the cumulative sum of \code{y} as the dependent variable (false by default)}
 
-\item{hmax}{(optional) integer, the maximum horizon up to which the impulse responses are computed. Should not exceed the \code{T}-\code{lags} (24 by default)}
+\item{hmax}{(optional) integer, the maximum horizon up to which the impulse responses are computed. Should not exceed the \code{T_}-\code{lags} (24 by default)}
 
-\item{lags}{(optional) integer, the number of lags to be included in the local projection model. Should not exceed \code{T}-\code{hmax}(12 by default)}
+\item{lags}{(optional) integer, the number of lags to be included in the local projection model. Should not exceed \code{T_}-\code{hmax}(12 by default)}
 
 \item{alphas}{(optional) vector of significance levels (0.05 by default)}
 

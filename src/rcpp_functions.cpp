@@ -16,7 +16,7 @@ using namespace std;
 //struct definitions
 
 struct lasso_output{
-  unsigned int N, T, gridsize;
+  unsigned int N, T_, gridsize;
   arma::vec grid, y;
   arma::mat betahats, X;
   int opt_type; //1="naive", 2="covariance", 3="adaptive"
@@ -28,7 +28,7 @@ struct streamlined_lasso_output{
 
 struct partial_lasso_output{
   bool partial;
-  unsigned int N, T, gridsize, h;
+  unsigned int N, T_, gridsize, h;
   arma::vec grid, y;
   arma::uvec H, minusH;
   arma::mat betahats, betahats_1, betahats_2, X, X_1, X_2;
@@ -47,7 +47,7 @@ struct streamlined_lasso_selected_output{
 
 struct partial_lasso_selected_output{
   bool partial;
-  unsigned int N, T, gridsize, lambda_pos, nonzero, h;
+  unsigned int N, T_, gridsize, lambda_pos, nonzero, h;
   double lambda, nonzero_limit, criterion_value, SSR;
   arma::vec grid, y, residual, betahat, betahat_1, betahat_2;
   arma::uvec H, minusH;
@@ -80,7 +80,7 @@ struct streamlined_selection_output{
 struct partial_desparsified_lasso_output{
   bool init_partial;
   LogicalVector nw_partials;
-  unsigned int N, T, h;
+  unsigned int N, T_, h;
   unsigned int init_gridsize, init_lambda_pos, init_nonzero;
   double init_lambda, init_nonzero_limit, init_criterion_value, init_SSR;
   arma::vec bhat_1;
@@ -101,7 +101,7 @@ struct partial_desparsified_lasso_output{
 struct partial_desparsified_lasso_inference_output{
   bool init_partial;
   LogicalVector nw_partials;
-  unsigned int N, T, h;
+  unsigned int N, T_, h;
   unsigned int init_gridsize, init_lambda_pos, init_nonzero;
   double init_lambda, init_nonzero_limit, init_criterion_value, init_SSR;
   arma::vec bhat_1;
@@ -166,19 +166,19 @@ struct standardize_output{
 
 //auxilliary functions
 
-selection_output selectBIC(const arma::mat& betahats, const arma::mat& X, const arma::vec& y, const arma::vec& grid, const unsigned int& N, const unsigned int& T, const unsigned int& gridsize, const double& nonzero_limit){
+selection_output selectBIC(const arma::mat& betahats, const arma::mat& X, const arma::vec& y, const arma::vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit){
   double c, best_criterion_value=std::numeric_limits<double>::infinity(), best_SSR=0;
   unsigned int lambda_pos=0, nonzero=0, best_nonzero=0;
   arma::vec betahat(N);
-  arma::vec residual(T), best_residual(T);
+  arma::vec residual(T_), best_residual(T_);
   double SSR=0;
   for(unsigned int i=0;i<gridsize;i++){
     betahat=betahats.col(i);
     nonzero=std::count_if(betahat.begin(), betahat.end(), [](double j){return j!=0;});
     residual=y-X*betahat;
     SSR=as_scalar(residual.t()*residual);
-    c=T*log(SSR/double(T))+log(T)*nonzero;
-    if(c < best_criterion_value && nonzero<=T*nonzero_limit){
+    c=T_*log(SSR/double(T_))+log(T_)*nonzero;
+    if(c < best_criterion_value && nonzero<=T_*nonzero_limit){
       best_criterion_value=c;
       lambda_pos=i;
       best_nonzero=nonzero;
@@ -200,19 +200,19 @@ selection_output selectBIC(const arma::mat& betahats, const arma::mat& X, const 
   return ret;
 }
 
-selection_output selectAIC(const arma::mat& betahats, const arma::mat& X, const arma::vec& y, const arma::vec& grid, const unsigned int& N, const unsigned int& T, const unsigned int& gridsize, const double& nonzero_limit){
+selection_output selectAIC(const arma::mat& betahats, const arma::mat& X, const arma::vec& y, const arma::vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit){
   double c, best_criterion_value=std::numeric_limits<double>::infinity(), best_SSR=0;
   unsigned int lambda_pos=0, nonzero=0, best_nonzero=0;
   arma::vec betahat(N);
-  arma::vec residual(T), best_residual(T);
+  arma::vec residual(T_), best_residual(T_);
   double SSR=0;
   for(unsigned int i=0;i<gridsize;i++){
     betahat=betahats.col(i);
     nonzero=std::count_if(betahat.begin(), betahat.end(), [](double j){return j!=0;});
     residual=y-X*betahat;
     SSR=as_scalar(residual.t()*residual);
-    c=T*log(SSR/double(T))+2.0*nonzero;
-    if(c < best_criterion_value && nonzero<=T*nonzero_limit){
+    c=T_*log(SSR/double(T_))+2.0*nonzero;
+    if(c < best_criterion_value && nonzero<=T_*nonzero_limit){
       best_criterion_value=c;
       lambda_pos=i;
       best_nonzero=nonzero;
@@ -234,11 +234,11 @@ selection_output selectAIC(const arma::mat& betahats, const arma::mat& X, const 
   return ret;
 }
 
-selection_output selectEBIC(const arma::mat& betahats, const arma::mat& X, const arma::vec& y, const arma::vec& grid, const unsigned int& N, const unsigned int& T, const unsigned int& gridsize, const double& nonzero_limit){
+selection_output selectEBIC(const arma::mat& betahats, const arma::mat& X, const arma::vec& y, const arma::vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit){
   double c, best_criterion_value=std::numeric_limits<double>::infinity(), best_SSR=0;
   unsigned int lambda_pos=0, nonzero=0, best_nonzero=0;
   arma::vec betahat(N);
-  arma::vec residual(T), best_residual(T);
+  arma::vec residual(T_), best_residual(T_);
   double SSR=0;
   double gamma=1.0;
   for(unsigned int i=0;i<gridsize;i++){
@@ -246,8 +246,8 @@ selection_output selectEBIC(const arma::mat& betahats, const arma::mat& X, const
     nonzero=std::count_if(betahat.begin(), betahat.end(), [](double j){return j!=0;});
     residual=y-X*betahat;
     SSR=as_scalar(residual.t()*residual);
-    c=T*log(SSR/double(T))+log(T)*nonzero+2.0*nonzero*gamma*log(N);
-    if(c < best_criterion_value && nonzero<=T*nonzero_limit){
+    c=T_*log(SSR/double(T_))+log(T_)*nonzero+2.0*nonzero*gamma*log(N);
+    if(c < best_criterion_value && nonzero<=T_*nonzero_limit){
       best_criterion_value=c;
       lambda_pos=i;
       best_nonzero=nonzero;
@@ -271,7 +271,7 @@ selection_output selectEBIC(const arma::mat& betahats, const arma::mat& X, const
 
 standardize_output standardize(const arma::mat& X, const arma::vec& y, const bool& demean, const bool& scale){
   unsigned int N=X.n_cols;
-  unsigned int T=X.n_rows;
+  unsigned int T_=X.n_rows;
   standardize_output ret;
   if(demean || scale){
     ret.y_mean=mean(y);
@@ -283,36 +283,36 @@ standardize_output standardize(const arma::mat& X, const arma::vec& y, const boo
   if(scale){
     ret.X_sds=arma::vec(N, fill::zeros);
     double sum=0;
-    for(unsigned int t=0; t<T; t++){
+    for(unsigned int t=0; t<T_; t++){
       sum+=pow(y(t)-ret.y_mean,2);
     }
-    ret.y_sd=sqrt(sum/double(T));
+    ret.y_sd=sqrt(sum/double(T_));
     for(unsigned int j=0; j<N; j++){
       sum=0;
-      for(unsigned int t=0; t<T; t++){
+      for(unsigned int t=0; t<T_; t++){
         sum+=pow(X.at(t,j)-ret.X_means(j),2);
       }
-      ret.X_sds(j)=sqrt(sum/double(T));
+      ret.X_sds(j)=sqrt(sum/double(T_));
     }
   }
-  ret.y_scaled=arma::vec(T, fill::zeros);
-  ret.X_scaled=arma::mat(T,N, fill::zeros);
+  ret.y_scaled=arma::vec(T_, fill::zeros);
+  ret.X_scaled=arma::mat(T_,N, fill::zeros);
   if(demean && scale){
-    for(unsigned int t=0; t<T; t++){
+    for(unsigned int t=0; t<T_; t++){
       ret.y_scaled(t)=(y(t)-ret.y_mean)/ret.y_sd;
       for(unsigned int j=0; j<N; j++){
         ret.X_scaled.at(t,j)=(X.at(t,j)-ret.X_means(j))/ret.X_sds(j);
       }
     }
   }else if(demean && !scale){
-    for(unsigned int t=0; t<T; t++){
+    for(unsigned int t=0; t<T_; t++){
       ret.y_scaled(t)=(y(t)-ret.y_mean);
       for(unsigned int j=0; j<N; j++){
         ret.X_scaled.at(t,j)=(X.at(t,j)-ret.X_means(j));
       }
     }
   }else if(!demean && scale){
-    for(unsigned int t=0; t<T; t++){
+    for(unsigned int t=0; t<T_; t++){
       ret.y_scaled(t)=y(t)/ret.y_sd;
       for(unsigned int j=0; j<N; j++){
         ret.X_scaled.at(t,j)=X.at(t,j)/ret.X_sds(j);
@@ -334,23 +334,23 @@ arma::vec buildgrid(const int& size, const double& lmax, const double& lmin) {
   return grid;
 }
 
-grids_output build_gridsXy(const unsigned int& T, const unsigned int N, const unsigned int& size, const arma::mat& X, const arma::vec& y, const arma::uvec& H, const bool& demean, const bool& scale){
+grids_output build_gridsXy(const unsigned int& T_, const unsigned int N, const unsigned int& size, const arma::mat& X, const arma::vec& y, const arma::uvec& H, const bool& demean, const bool& scale){
   unsigned int h=H.n_elem;
   unsigned int j,i;
   arma::vec X_j;
   arma::uvec index_minusj;
   arma::mat X_minusj;
   standardize_output s=standardize(X, y, demean, scale);
-  double lambda_max=max(abs((s.X_scaled).t()*(s.y_scaled))/double(T));
-  arma::vec init_grid=buildgrid(size,lambda_max,1.0/double(T*10.0));
+  double lambda_max=max(abs((s.X_scaled).t()*(s.y_scaled))/double(T_));
+  arma::vec init_grid=buildgrid(size,lambda_max,1.0/double(T_*10.0));
   arma::mat nw_grids(h, size);
   for(i=0; i<h; i++){
     j=H(i);
     X_j=(s.X_scaled).col(j);
     index_minusj=linspace<arma::uvec>(0,N-1,N); index_minusj.shed_row(j);
     X_minusj=(s.X_scaled).cols(index_minusj);
-    lambda_max=max(abs(X_minusj.t()*X_j)/double(T));
-    nw_grids.row(i)=buildgrid(size,lambda_max,1.0/double(T*10.0)).t();
+    lambda_max=max(abs(X_minusj.t()*X_j)/double(T_));
+    nw_grids.row(i)=buildgrid(size,lambda_max,1.0/double(T_*10.0)).t();
   }
   grids_output ret;
   ret.init_grid=init_grid;
@@ -396,7 +396,7 @@ arma::vec q_sim_mvnorm_sparse_chol_shrink(const arma::mat& Sigma, const int& S, 
 }
 
 arma::mat coordinate_descent_naive(const arma::mat& X, const arma::colvec& y, const arma::vec& grid, const double& opt_threshold,
-                                   const unsigned int& N, const unsigned int& T, const unsigned int& gridsize){
+                                   const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize){
   arma::mat betahats(N,gridsize);
   arma::vec betahat(N,fill::zeros);
   arma::vec betahat_old(N,fill::zeros);
@@ -407,7 +407,7 @@ arma::mat coordinate_descent_naive(const arma::mat& X, const arma::colvec& y, co
   arma::uvec Nonactive_set=linspace<arma::uvec>(0,N-1,N);
   double change=opt_threshold+1;
   arma::vec x_crossprods(N,fill::zeros);
-  arma::vec x_j(T);
+  arma::vec x_j(T_);
   for(j=0;j<N;j++){
     x_j=X.col(j);
     x_crossprods(j)=as_scalar(x_j.t()*x_j);
@@ -423,7 +423,7 @@ arma::mat coordinate_descent_naive(const arma::mat& X, const arma::colvec& y, co
       j=Nonactive_set(k);
       x_j=X.col(j);
       partial_res=full_res;//+X.col(j)*betahat(j);
-      betahat(j)=soft_threshold(as_scalar(x_j.t()*partial_res)/x_crossprods(j), T*grid(g)/x_crossprods(j));
+      betahat(j)=soft_threshold(as_scalar(x_j.t()*partial_res)/x_crossprods(j), T_*grid(g)/x_crossprods(j));
       if(betahat(j)!=0){ //new variable becomes nonzero
         active_length++;
         temp_Active_set=arma::uvec(active_length);
@@ -441,7 +441,7 @@ arma::mat coordinate_descent_naive(const arma::mat& X, const arma::colvec& y, co
         j=Active_set(k);
         x_j=X.col(j);
         partial_res=full_res+X.col(j)*betahat(j);
-        betahat(j)=soft_threshold(as_scalar(x_j.t()*partial_res)/x_crossprods(j), T*grid(g)/x_crossprods(j));
+        betahat(j)=soft_threshold(as_scalar(x_j.t()*partial_res)/x_crossprods(j), T_*grid(g)/x_crossprods(j));
         full_res=partial_res-X.col(j)*betahat(j);
       }
       change=sqrt(as_scalar((betahat-betahat_old).t()*(betahat-betahat_old)))/double(N);
@@ -453,7 +453,7 @@ arma::mat coordinate_descent_naive(const arma::mat& X, const arma::colvec& y, co
 }
 
 arma::mat coordinate_descent_covariance(const arma::mat& X, const arma::colvec& y, const arma::vec& grid, const double& opt_threshold,
-                                        const unsigned int& N, const unsigned int& T, const unsigned int& gridsize){
+                                        const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize){
   arma::mat betahat_mat(N,gridsize);
   arma::vec betahat(N,fill::zeros);
   arma::vec betahat_old(N,fill::zeros);
@@ -464,7 +464,7 @@ arma::mat coordinate_descent_covariance(const arma::mat& X, const arma::colvec& 
   arma::uvec Nonactive_set=linspace<arma::uvec>(0,N-1,N);
   double change=opt_threshold+1;
   arma::mat x_crossprods(N,N,fill::zeros);
-  arma::vec x_j(T);
+  arma::vec x_j(T_);
   for(j=0;j<N;j++){
     x_j=X.col(j);
     x_crossprods(j,j)=as_scalar(x_j.t()*x_j);
@@ -486,7 +486,7 @@ arma::mat coordinate_descent_covariance(const arma::mat& X, const arma::colvec& 
           x_jx_kbeta_k+=x_crossprods(j,l)*betahat(l);
         }
       }
-      betahat(j)=soft_threshold((xy(j)-x_jx_kbeta_k)/x_crossprods(j,j), T*grid(g)/x_crossprods(j,j));
+      betahat(j)=soft_threshold((xy(j)-x_jx_kbeta_k)/x_crossprods(j,j), T_*grid(g)/x_crossprods(j,j));
       if(betahat(j)!=0){ //new variable becomes nonzero
         active_length++;
         x_j=X.col(j);
@@ -515,7 +515,7 @@ arma::mat coordinate_descent_covariance(const arma::mat& X, const arma::colvec& 
             x_jx_kbeta_k+=x_crossprods(j,b)*betahat(b);
           }
         }
-        betahat(j)=soft_threshold((xy(j)-x_jx_kbeta_k)/x_crossprods(j,j), T*grid(g)/x_crossprods(j,j));
+        betahat(j)=soft_threshold((xy(j)-x_jx_kbeta_k)/x_crossprods(j,j), T_*grid(g)/x_crossprods(j,j));
       }
       change=sqrt(as_scalar((betahat-betahat_old).t()*(betahat-betahat_old)))/N;
       betahat_old=betahat;
@@ -525,19 +525,19 @@ arma::mat coordinate_descent_covariance(const arma::mat& X, const arma::colvec& 
   return betahat_mat;
 }
 
-double Andrews91_truncation(const mat& What, const unsigned int& T, const unsigned int& h){
+double Andrews91_truncation(const mat& What, const unsigned int& T_, const unsigned int& h){
   arma::vec rhos(h), variances(h);
-  arma::vec y_T(T-1), y_Tm1(T-1), constant(T-1,fill::ones), residual(T-1);
-  arma::mat X_T(T-1,2);
+  arma::vec y_T(T_-1), y_Tm1(T_-1), constant(T_-1,fill::ones), residual(T_-1);
+  arma::mat X_T(T_-1,2);
   arma::vec beta(2);
   for(unsigned int i=0; i<h; i++){
-    y_T=What.submat(1,i,T-1,i);
-    y_Tm1=What.submat(0,i,T-2,i);
+    y_T=What.submat(1,i,T_-1,i);
+    y_Tm1=What.submat(0,i,T_-2,i);
     X_T=join_horiz(constant,y_Tm1);
     beta=inv(X_T.t()*X_T)*X_T.t()*y_T;
     residual=y_T-X_T*beta;
     rhos(i)=beta(1);
-    variances(i)=as_scalar(residual.t()*residual)/double(double(T)-2.0);
+    variances(i)=as_scalar(residual.t()*residual)/double(double(T_)-2.0);
   }
   double numerator=0, denominator=0;
   for(unsigned int i=0; i<h; i++){
@@ -545,23 +545,23 @@ double Andrews91_truncation(const mat& What, const unsigned int& T, const unsign
     denominator+=pow(variances(i),2)/double(pow(1-rhos(i),4));
   }
   double alphahat1=numerator/double(denominator);
-  double S_T=1.1447*pow(alphahat1*double(T),double(1.0/double(3.0)));
+  double S_T=1.1447*pow(alphahat1*double(T_),double(1.0/double(3.0)));
   return S_T;
 }
 
-mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsigned int& N, const unsigned int& T, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
+mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
   mat Omegahat(h,h,fill::zeros);
   vec uhat=init_residual;
   mat vhat=nw_residuals;
-  mat What(T,h);
+  mat What(T_,h);
   for(unsigned int a=0;a<h;a++){
     What.col(a)=uhat%vhat.col(a);
   }
   unsigned int Q_T;
   if(LRVtrunc==0 && T_multiplier==0){//If both the T_multiplier and LRVtrunc are 0, do a data-driven choice of tuning parameter
-    Q_T=std::ceil(Andrews91_truncation(What, T, h));
+    Q_T=std::ceil(Andrews91_truncation(What, T_, h));
   }else{
-    Q_T=std::ceil(pow(T_multiplier*double(T),LRVtrunc));
+    Q_T=std::ceil(pow(T_multiplier*double(T_),LRVtrunc));
   }
   vec Whatbar=mean(What,0).as_col();
   //this is not memory efficient, I don't need all the xi_l^(j,k) at once
@@ -570,9 +570,9 @@ mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsign
     for(unsigned int b=0;b<h;b++){
       for(unsigned int l=0;l<=Q_T-1;l++){
         //I think I need to keep redefining them since their sizes change
-        vec W_j=What.submat(l,a,(T-1),a);
-        vec W_kminusl=What.submat(0,b,(T-l-1),b);
-        xi(a,b,l)=as_scalar( (W_j-as_scalar(Whatbar[a])).t()*(W_kminusl-as_scalar(Whatbar[b])) )/(T-l);
+        vec W_j=What.submat(l,a,(T_-1),a);
+        vec W_kminusl=What.submat(0,b,(T_-l-1),b);
+        xi(a,b,l)=as_scalar( (W_j-as_scalar(Whatbar[a])).t()*(W_kminusl-as_scalar(Whatbar[b])) )/(T_-l);
       }
     }
   }
@@ -615,7 +615,7 @@ arma::vec unscale(const standardize_output s, const arma::vec& beta_H, const arm
 
 lasso_output lasso(const arma::mat& X, const arma::colvec& y, const arma::vec& grid,
                    const double& opt_threshold, const int& opt_type){
-  unsigned int T=X.n_rows;
+  unsigned int T_=X.n_rows;
   unsigned int N=X.n_cols;
   unsigned int gridsize=grid.n_elem;
   arma::mat betahats(N,gridsize);
@@ -623,36 +623,36 @@ lasso_output lasso(const arma::mat& X, const arma::colvec& y, const arma::vec& g
   switch(opt_type) {
   case 1: //"naive"
     betahats=coordinate_descent_naive(X, y, grid, opt_threshold,
-                                      N, T, gridsize);
+                                      N, T_, gridsize);
     break;
   case 2: //"covariance"
     betahats=coordinate_descent_covariance(X, y, grid, opt_threshold,
-                                           N, T, gridsize);
+                                           N, T_, gridsize);
     break;
   case 3: //"adaptive"
-    if(N>T){
+    if(N>T_){
       betahats=coordinate_descent_naive(X, y, grid, opt_threshold,
-                                        N, T, gridsize);
+                                        N, T_, gridsize);
     }
     else{
       betahats=coordinate_descent_covariance(X, y, grid, opt_threshold,
-                                             N, T, gridsize);
+                                             N, T_, gridsize);
     }
     break;
   default:
     //warning("Warning: Invalid opt_type, choosing type 3");
-    if(N>T){
+    if(N>T_){
       betahats=coordinate_descent_naive(X, y, grid, opt_threshold,
-                                        N, T, gridsize);
+                                        N, T_, gridsize);
     }
     else{
       betahats=coordinate_descent_covariance(X, y, grid, opt_threshold,
-                                             N, T, gridsize);
+                                             N, T_, gridsize);
     }
   }
   lasso_output ret;
   ret.N=N;
-  ret.T=T;
+  ret.T_=T_;
   ret.gridsize=gridsize;
   ret.grid=grid;
   ret.y=y;
@@ -664,7 +664,7 @@ lasso_output lasso(const arma::mat& X, const arma::colvec& y, const arma::vec& g
 
 partial_lasso_output partial_lasso(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& partial, const arma::vec& grid,
                                    const double& opt_threshold, const int& opt_type){
-  unsigned int T=X.n_rows;
+  unsigned int T_=X.n_rows;
   unsigned int N=X.n_cols;
   unsigned int gridsize=grid.n_elem;
   unsigned int h=H.n_elem;
@@ -677,7 +677,7 @@ partial_lasso_output partial_lasso(const arma::mat& X, const arma::colvec& y, co
   lasso_output L;
   if(partial==true && h>0){
     arma::mat X1X1inv=inv(X_1.t()*X_1);
-    arma::mat M_X1=(mat(T,T,fill::eye)-X_1*X1X1inv*X_1.t());
+    arma::mat M_X1=(mat(T_,T_,fill::eye)-X_1*X1X1inv*X_1.t());
     arma::mat resX_2=M_X1*X_2;
     arma::vec resy=M_X1*y;
     L=lasso(resX_2, resy, grid,
@@ -703,7 +703,7 @@ partial_lasso_output partial_lasso(const arma::mat& X, const arma::colvec& y, co
   partial_lasso_output ret;
   ret.partial=partial;
   ret.N=N;
-  ret.T=T;
+  ret.T_=T_;
   ret.gridsize=gridsize;
   ret.h=h;
   ret.grid=grid;
@@ -720,7 +720,7 @@ partial_lasso_output partial_lasso(const arma::mat& X, const arma::colvec& y, co
   return(ret);
 }
 
-selection_output selectPI(const mat& betahats, const mat& X, const vec& y, const arma::uvec& H, const bool& partial, const vec& grid, const unsigned int& N, const unsigned int& T, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha){
+selection_output selectPI(const mat& betahats, const mat& X, const vec& y, const arma::uvec& H, const bool& partial, const vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha){
   unsigned int K=15; //max iterations
   double improvement_threshold=0.01; //if the % change in lambda is less than this, stop iterating
   unsigned int B=1000; //how many simulations are used to estimate the quantiles of the gaussian maximum
@@ -746,8 +746,8 @@ selection_output selectPI(const mat& betahats, const mat& X, const vec& y, const
   //loop where we iterate to find the best lambda
   for(unsigned int k=0; k<K; k++){
     if(c!=0){
-      //LRCovariance=LRVestimator(uhat, X, N, T, N, 0.5, 2); //get an estimate for the long run covariance matrix
-      LRCovariance=LRVestimator(uhat, X, N, T, N, 0, 0);
+      //LRCovariance=LRVestimator(uhat, X, N, T_, N, 0.5, 2); //get an estimate for the long run covariance matrix
+      LRCovariance=LRVestimator(uhat, X, N, T_, N, 0, 0);
       eig_sym(eigval, eigvec, LRCovariance);
       for(unsigned int i=0; i<N; i++){
         sqrt_diag_eigval(i,i)=sqrt(max(0.0,eigval(i))); //negative eigenvalues replaced by 0
@@ -759,7 +759,7 @@ selection_output selectPI(const mat& betahats, const mat& X, const vec& y, const
       }
       Gmax=sort(Gmax);
       cutoff=Gmax(B*(1-alpha)); //1-alpha quantile of the randomly generated data
-      lambda=c*cutoff/double(sqrt(double(T))); ///not yet multiplying by 4 here
+      lambda=c*cutoff/double(sqrt(double(T_))); ///not yet multiplying by 4 here
     }else{
       lambda=0;
     }
@@ -798,7 +798,7 @@ selection_output selectPI(const mat& betahats, const mat& X, const vec& y, const
   return ret;
 }
 
-selection_output selectPI_new(const mat& betahats, const mat& X, const vec& y, const arma::uvec& H, const bool& partial, const vec& grid, const unsigned int& N, const unsigned int& T, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha){
+selection_output selectPI_new(const mat& betahats, const mat& X, const vec& y, const arma::uvec& H, const bool& partial, const vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha){
   unsigned int K=15; //max iterations
   double improvement_threshold=0.01; //if the % change in lambda is less than this, stop iterating
   unsigned int B=1000; //how many simulations are used to estimate the quantiles of the gaussian maximum
@@ -816,10 +816,10 @@ selection_output selectPI_new(const mat& betahats, const mat& X, const vec& y, c
   //loop where we iterate to find the best lambda
   for(unsigned int k=0; k<K; k++){
     if(c!=0){
-      //LRCovariance=LRVestimator(uhat, X, N, T, N, 0.5, 2);
-      LRCovariance=LRVestimator(uhat, X, N, T, N, 0, 0); //get an estimate for the long run covariance matrix
+      //LRCovariance=LRVestimator(uhat, X, N, T_, N, 0.5, 2);
+      LRCovariance=LRVestimator(uhat, X, N, T_, N, 0, 0); //get an estimate for the long run covariance matrix
       cutoff=as_scalar(q_sim_mvnorm_sparse_chol_shrink(LRCovariance, B, quantile, 0.01));
-      lambda=c*cutoff/double(sqrt(double(T))); ///not yet multiplying by 4 here
+      lambda=c*cutoff/double(sqrt(double(T_))); ///not yet multiplying by 4 here
     }else{
       lambda=0;
     }
@@ -865,25 +865,25 @@ partial_lasso_selected_output partial_lasso_selected(const arma::mat& X, const a
   selection_output S;
   switch(selection_type) {
   case 1: //"BIC"
-    S=selectBIC(PL.betahats, X, y, grid, PL.N, PL.T, PL.gridsize,nonzero_limit);
+    S=selectBIC(PL.betahats, X, y, grid, PL.N, PL.T_, PL.gridsize,nonzero_limit);
     break;
   case 2: //"AIC"
-    S=selectAIC(PL.betahats, X, y, grid, PL.N, PL.T, PL.gridsize,nonzero_limit);
+    S=selectAIC(PL.betahats, X, y, grid, PL.N, PL.T_, PL.gridsize,nonzero_limit);
     break;
   case 3: //"EBIC"
-    S=selectEBIC(PL.betahats, X, y, grid, PL.N, PL.T, PL.gridsize,nonzero_limit);
+    S=selectEBIC(PL.betahats, X, y, grid, PL.N, PL.T_, PL.gridsize,nonzero_limit);
     break;
   case 4: //"PI"
-    S=selectPI(PL.betahats, X, y, H, partial, grid, PL.N, PL.T, PL.gridsize,nonzero_limit, PIconstant, PIprobability);
+    S=selectPI(PL.betahats, X, y, H, partial, grid, PL.N, PL.T_, PL.gridsize,nonzero_limit, PIconstant, PIprobability);
     break;
   default:
     //warning("Warning: Invalid selection_type, choosing type 4");
-    S=selectPI(PL.betahats, X, y, H, partial, grid, PL.N, PL.T, PL.gridsize,nonzero_limit, PIconstant, PIprobability);
+    S=selectPI(PL.betahats, X, y, H, partial, grid, PL.N, PL.T_, PL.gridsize,nonzero_limit, PIconstant, PIprobability);
   }
   partial_lasso_selected_output ret;
   ret.partial=partial;
   ret.N=PL.N;
-  ret.T=PL.T;
+  ret.T_=PL.T_;
   ret.gridsize=PL.gridsize;
   ret.lambda_pos=S.lambda_pos;
   ret.nonzero=S.nonzero;
@@ -919,17 +919,17 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
                                                               init_opt_threshold, init_opt_type, PIconstant, PIprobability);
   unsigned int h=init_L.h;
   unsigned int N=init_L.N;
-  unsigned int T=init_L.T;
+  unsigned int T_=init_L.T_;
   unsigned int j, i;
   arma::uvec i_;
   bool nw_partial;
   int nw_selection_type, nw_opt_type;
   double nw_nonzero_limit, nw_opt_threshold;
   double tauhat_j;
-  arma::vec bhat_1(h), x_j(T), gammahat_j, nw_grid;
+  arma::vec bhat_1(h), x_j(T_), gammahat_j, nw_grid;
   arma::vec nw_gridsizes(h), nw_lambdas(h), nw_criterion_values(h), nw_SSRs(h), nw_lambda_poss(h), nw_nonzeros(h);
   arma::uvec minusj, Hminusj, nw_H;
-  arma::mat nw_residuals(T,h), Thetahat(h,N, fill::zeros), Upsilonhat_inv(h,h, fill::zeros), gammahats(N-1,h), Gammahat(h,N, fill::zeros), Xminusj(T,N-1);
+  arma::mat nw_residuals(T_,h), Thetahat(h,N, fill::zeros), Upsilonhat_inv(h,h, fill::zeros), gammahats(N-1,h), Gammahat(h,N, fill::zeros), Xminusj(T_,N-1);
   partial_lasso_selected_output nw_L;
   std::list<arma::uvec> nw_nonzero_poss;
   //If we manually provide ALL the necessary nodewise components, we don't need to estimate them any more
@@ -958,7 +958,7 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
       nw_opt_type=nw_opt_types(i);
       nw_L=partial_lasso_selected(Xminusj, x_j, nw_H, nw_partial, nw_grid, nw_selection_type, nw_nonzero_limit,
                                   nw_opt_threshold, nw_opt_type, PIconstant, PIprobability);
-      tauhat_j=nw_L.SSR/double(T)+2*nw_L.lambda*sum(abs(nw_L.betahat));
+      tauhat_j=nw_L.SSR/double(T_)+2*nw_L.lambda*sum(abs(nw_L.betahat));
       Upsilonhat_inv(i,i)= 1.0/tauhat_j;
       Gammahat(i,j)= 1;
       i_=i;
@@ -991,13 +991,13 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
     }
   }
 
-  bhat_1=init_L.betahat_1+Thetahat*X.t()*(init_L.residual)/double(T);
+  bhat_1=init_L.betahat_1+Thetahat*X.t()*(init_L.residual)/double(T_);
 
   partial_desparsified_lasso_output ret;
   ret.init_partial=init_partial;
   ret.nw_partials=nw_partials;
   ret.N=init_L.N;
-  ret.T=init_L.T;
+  ret.T_=init_L.T_;
   ret.h=init_L.h;
   ret.init_gridsize=init_L.gridsize;
   ret.init_lambda_pos=init_L.lambda_pos;
@@ -1050,7 +1050,7 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
                                                                    init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types, PIconstant, PIprobability,
                                                                    manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_);
   arma::vec bhat_1_unscaled=unscale(s, PDL.bhat_1, H, demean, scale);
-  arma::mat Omegahat=LRVestimator(PDL.init_residual, PDL.nw_residuals, PDL.N, PDL.T, PDL.h, LRVtrunc, T_multiplier);
+  arma::mat Omegahat=LRVestimator(PDL.init_residual, PDL.nw_residuals, PDL.N, PDL.T_, PDL.h, LRVtrunc, T_multiplier);
   arma::vec z_quantiles=qnorm(alphas/2.0,0.0,1.0,false,false);
 
   unsigned int P=R.n_rows;
@@ -1060,7 +1060,7 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   arma::vec Rbhat_1_unscaled=R*bhat_1_unscaled;
   arma::vec std_errors(P);
   for(unsigned int p=0; p<P; p++){
-    std_errors(p)=sqrt( as_scalar(R.row(p)*covariance*(R.row(p)).t())/double(PDL.T) );
+    std_errors(p)=sqrt( as_scalar(R.row(p)*covariance*(R.row(p)).t())/double(PDL.T_) );
   }
   arma::mat intervals(P, 2*alphas.length()+1);
   intervals.col(alphas.length())=Rbhat_1;
@@ -1079,14 +1079,14 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   for(unsigned int p=0; p<P; p++){
     q_scaled(p)=q(p)*Rbhat_1(p)/Rbhat_1_unscaled(p);
   }
-  double joint_chi2_stat=as_scalar( (Rbhat_1-q_scaled).t()*inv_sympd(R*covariance*R.t()/double(PDL.T))*(Rbhat_1-q_scaled) );
+  double joint_chi2_stat=as_scalar( (Rbhat_1-q_scaled).t()*inv_sympd(R*covariance*R.t()/double(PDL.T_))*(Rbhat_1-q_scaled) );
 
   partial_desparsified_lasso_inference_output ret;
 
   ret.init_partial=PDL.init_partial;
   ret.nw_partials=PDL.nw_partials;
   ret.N=PDL.N;
-  ret.T=PDL.T;
+  ret.T_=PDL.T_;
   ret.h=PDL.h;
   ret.init_gridsize=PDL.init_gridsize;
   ret.init_lambda_pos=PDL.init_lambda_pos;
@@ -1149,19 +1149,19 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
 // //' @param H indexes of relevant regressors
 // //' @param init_partial (optional) boolean, true if you want the initial lasso to be partially penalized (false by default)
 // //' @param nw_partials (optional) boolean vector with the dimension of H, trues if you want the nodewise regressions to be partially penalized (all false by default)
-// //' @param gridsize (optional) integer, how many different lambdas there should be in both inital and nodewise grids (100 by default)
+// //' @param gridsize (optional) integer, how many different lambdas there should be in both initial and nodewise grids (100 by default)
 // //' @param init_grid (optional) vector, containing user specified initial grid
 // //' @param nw_grids (optional) matrix with number of rows the size of H, rows containing user specified grids for the nodewise regressions
-// //' @param init_selection_type (optional) integer, how should lambda be selected in the inital regression, 1=BIC, 2=AIC, 3=EBIC (1 by default)
-// //' @param nw_selection_types (optional) inteter vector with the dimension of H, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC (all 1s by default)
-// //' @param init_nonzero_limit (optional) number controlling the maximum number of nonzeros that can be selected in the initial regression (0.5 by default, meaning no more than 0.5*T regressors can have nonzero estimates)
+// //' @param init_selection_type (optional) integer, how should lambda be selected in the initial regression, 1=BIC, 2=AIC, 3=EBIC (1 by default)
+// //' @param nw_selection_types (optional) integer vector with the dimension of H, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC (all 1s by default)
+// //' @param init_nonzero_limit (optional) number controlling the maximum number of nonzeros that can be selected in the initial regression (0.5 by default, meaning no more than 0.5*T_ regressors can have nonzero estimates)
 // //' @param nw_nonzero_limits (optional) vector with the dimension of H, controlling the maximum number of nonzeros that can be selected in the nodewise regressions (0.5s by default)
-// //' @param init_opt_threshold (optional) optimization threshold for the coordinate descent algorithm in the inital regression (10^(-4) by default)
+// //' @param init_opt_threshold (optional) optimization threshold for the coordinate descent algorithm in the initial regression (10^(-4) by default)
 // //' @param nw_opt_thresholds (optional) vector with the dimension of H, optimization thresholds for the coordinate descent algorithm in the nodewise lasso regression (10^(-4)s by default)
-// //' @param init_opt_type (optional) integer, which type of coordinate descent algorithm should be used in the inial regression, 1=naive, 2=covariance, 3=adaptive (3 by default)
-// //' @param nw_opt_types (optional)inteter vector with the dimension of H, which type of coordinate descent algorithm should be used in the nodewise regressions, 1=naive, 2=covariance, 3=adaptive (3s by default)
-// //' @param LRVtrunc (optional) parameter controlling the bandwidth Q_T used in the long run covariance matrix, Q_T=ceil(T_multiplier*T^LRVtrunc) (LRVtrunc=0.2 by default)
-// //' @param T_multiplier (optional) parameter controlling the bandwidth Q_T used in the long run covariance matrix, Q_T=ceil(T_multiplier*T^LRVtrunc) (Tmultiplier=2 by default)
+// //' @param init_opt_type (optional) integer, which type of coordinate descent algorithm should be used in the initial regression, 1=naive, 2=covariance, 3=adaptive (3 by default)
+// //' @param nw_opt_types (optional)integer vector with the dimension of H, which type of coordinate descent algorithm should be used in the nodewise regressions, 1=naive, 2=covariance, 3=adaptive (3s by default)
+// //' @param LRVtrunc (optional) parameter controlling the bandwidth Q_T used in the long run covariance matrix, Q_T=ceil(T_multiplier*T_^LRVtrunc) (LRVtrunc=0.2 by default)
+// //' @param T_multiplier (optional) parameter controlling the bandwidth Q_T used in the long run covariance matrix, Q_T=ceil(T_multiplier*T_^LRVtrunc) (T_multiplier=2 by default)
 // //' @param alphas (optional) vector of significance levels (c(0.01,0.05,0.1) by default)
 // //' @param R (optional) matrix with number of columns the dimension of H, used to test the null hypothesis R*beta=q (identity matrix as default)
 // //' @param q (optional) vector of size same as the rows of H, used to test the null hypothesis R*beta=q (zeroes by default)
@@ -1180,7 +1180,7 @@ List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::
                                                                                         LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability,
                                                                                         manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_);
   List misc=List::create(Named("N")=PDLI.N,
-                         Named("T")=PDLI.T,
+                         Named("T_")=PDLI.T_,
                          Named("h")=PDLI.h,
                          Named("y")=PDLI.y,
                          Named("H")=PDLI.H,
@@ -1244,16 +1244,16 @@ List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::
 
 
 
-// //' Generate inital and nodewise lambda grids
-// //' @param T number of rows in the X matrix
+// //' Generate initial and nodewise lambda grids
+// //' @param T_ number of rows in the X matrix
 // //' @param N number of columns in the X matrix
 // //' @param size number of lambdas in the grids
 // //' @param X regressor matrix
 // //' @param y dependent variable vector
 // //' @param H indexes of relevant regressors
 //[[Rcpp::export(.Rwrap_build_gridsXy)]]
-List Rwrap_build_gridsXy(unsigned int T, unsigned int N, unsigned int size, arma::mat X, arma::vec y, arma::uvec H, bool demean, bool scale){
-  grids_output g=build_gridsXy(T, N, size, X, y, H, demean, scale);
+List Rwrap_build_gridsXy(unsigned int T_, unsigned int N, unsigned int size, arma::mat X, arma::vec y, arma::uvec H, bool demean, bool scale){
+  grids_output g=build_gridsXy(T_, N, size, X, y, H, demean, scale);
   return List::create(Named("init_grid")=g.init_grid,
                       Named("nw_grids")=g.nw_grids
   );
@@ -1267,10 +1267,10 @@ arma::mat na_matrix(unsigned int rows, unsigned int cols){
 }
 
 arma::mat naomit(arma::mat x){
-  unsigned int T=x.n_rows;
+  unsigned int T_=x.n_rows;
   arma::uvec na_indexes;
   arma::uvec index(1);
-  for(unsigned int i=0; i<T; i++){
+  for(unsigned int i=0; i<T_; i++){
     if((x.row(i)).has_nan()){
       index(0)=i;
       na_indexes=arma::join_vert(na_indexes,index);
@@ -1282,11 +1282,11 @@ arma::mat naomit(arma::mat x){
 
 arma::mat Rcpp_make_lags(const arma::mat& x, const unsigned int& lags) {
   unsigned int N=x.n_cols;
-  unsigned int T=x.n_rows;
-  arma::mat ret=na_matrix(T, N*lags);
+  unsigned int T_=x.n_rows;
+  arma::mat ret=na_matrix(T_, N*lags);
   for(unsigned int i=1; i<=lags; i++){
-    //ret[(1+i):T,((i-1)*N+1):(i*N)]<-x[1:(T-i),]
-    ret(span(i,T-1),span((i-1)*N,i*N-1))=x(span(0,(T-1-i)),span(0,N-1));
+    //ret[(1+i):T_,((i-1)*N+1):(i*N)]<-x[1:(T_-i),]
+    ret(span(i,T_-1),span((i-1)*N,i*N-1))=x(span(0,(T_-1-i)),span(0,N-1));
   }
   return ret;
 }
@@ -1326,7 +1326,7 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
   arma::mat intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
   arma::mat R(1,1); R(0,0)=1;
   arma::vec Q(1); Q(0)=0;
-  unsigned int T=y.n_elem;
+  unsigned int T_=y.n_elem;
   arma::mat r;
   if(r_.isNotNull()){
     NumericMatrix r_temp(r_);
@@ -1344,13 +1344,13 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
     w=join_horiz(r,x,q);
     w_lags=Rcpp_make_lags(w, lags);
     regressors=join_horiz(x, r, w_lags);
-    dependent=na_matrix(T,1);
+    dependent=na_matrix(T_,1);
     if(cumulate_y){
-      for(unsigned int i=0; i<T-1;i++){
+      for(unsigned int i=0; i<T_-1;i++){
         dependent.row(i)=sum(y.rows(i,i+1));
       }
     }else{
-      for(unsigned int i=0; i<T-1;i++){
+      for(unsigned int i=0; i<T_-1;i++){
         dependent.row(i)=y.row(i+1);
       }
     }
@@ -1403,14 +1403,14 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
     if(h==1 && sum(abs(x-y))<1e-8){
       p.increment();
     }else{
-      arma::vec dependent_p(T); dependent_p=na_matrix(T,1);
-      dependent=na_matrix(T,1);
+      arma::vec dependent_p(T_); dependent_p=na_matrix(T_,1);
+      dependent=na_matrix(T_,1);
       if(cumulate_y){
-        for(unsigned int i=0; i<T-h;i++){
+        for(unsigned int i=0; i<T_-h;i++){
           dependent.row(i)=sum(y.rows(i,i+h));
         }
       }else{
-        for(unsigned int i=0; i<T-h;i++){
+        for(unsigned int i=0; i<T_-h;i++){
           dependent.row(i)=y.row(i+h);
         }
       }
