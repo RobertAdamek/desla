@@ -9,7 +9,7 @@
     .Call(`_desla_Rwrap_build_gridsXy`, T_, N, size, X, y, H, demean, scale)
 }
 
-.Rcpp_local_projection <- function(r_, x, y, q_, y_predetermined, cumulate_y, hmax, lags, alphas, init_partial, selection, PIconstant, progress_bar) {
-    .Call(`_desla_Rcpp_local_projection`, r_, x, y, q_, y_predetermined, cumulate_y, hmax, lags, alphas, init_partial, selection, PIconstant, progress_bar)
+.Rcpp_local_projection <- function(r_, x, y, q_, manual_w_, H, y_predetermined, cumulate_y, hmax, lags, alphas, init_partial, selection, PIconstant, progress_bar) {
+    .Call(`_desla_Rcpp_local_projection`, r_, x, y, q_, manual_w_, H, y_predetermined, cumulate_y, hmax, lags, alphas, init_partial, selection, PIconstant, progress_bar)
 }
 

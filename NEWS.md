@@ -1,9 +1,8 @@
-## Resubmission
-This is a resubmission. In this version I have:
+# desla 0.1.0.9000
 
-* Fixed the code to use "TRUE" instead of "T" and "FALSE" instead of "F". Additionally, any usage of "T" as a variable name is replaced with "T_", both in function documentation, and the source code
+* Added optional arguments to the HDLP function, allowing users to manually provide the variables in w, and to choose which parameters are unpenalized
 
-* All references in the The DESCRIPTION file now include a doi or arXiv URL
+* Fixed bug in the long run covariance function, which occasionally caused crashes
 
 # desla 0.1.0
 

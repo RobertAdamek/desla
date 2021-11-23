@@ -9,6 +9,8 @@ HDLP(
   x,
   y,
   q = NULL,
+  manual_w = NULL,
+  H = 1,
   y_predetermined = FALSE,
   cumulate_y = FALSE,
   hmax = 24,
@@ -28,6 +30,10 @@ HDLP(
 \item{y}{\code{T_}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details}
 
 \item{q}{(optional) vector or matrix with \code{T_} rows, containing the "fast" variables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)}
+
+\item{manual_w}{(optional) matrix with \code{T_} rows, containing the variables in w, \insertCite{plagborg2021local;textual}{desla} for details. This overrides the default way it is constructed (NULL by default)}
+
+\item{H}{(optional) vector of indexes indicating which variables should be left unpenalized (1 by default, which corresponds to the shock variable)}
 
 \item{y_predetermined}{(optional) boolean, true if the response variable \code{y} is predetermined with respect to \code{x}, i.e. cannot react within the same period to the shock. If true, the impulse response at horizon 0 is 0 (false by default)}
 
@@ -51,6 +57,7 @@ HDLP(
 Returns a list with the following elements: \cr
 \item{\code{intervals}}{matrix containing the point estimates and confidence intervals for the impulse response function, for significance levels given in \code{alphas}}
 \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
+\item{\code{betahats}}{list of matrices (row vectors), giving the initial lasso estimate at each horizon}
 }
 \description{
 Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.

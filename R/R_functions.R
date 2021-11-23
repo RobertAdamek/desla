@@ -250,6 +250,8 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' @param x \code{T_}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details
 #' @param y \code{T_}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details
 #' @param q (optional) vector or matrix with \code{T_} rows, containing the "fast" variables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)
+#' @param manual_w (optional) matrix with \code{T_} rows, containing the variables in w, \insertCite{plagborg2021local;textual}{desla} for details. This overrides the default way it is constructed (NULL by default)
+#' @param H (optional) vector of indexes indicating which variables should be left unpenalized (1 by default, which corresponds to the shock variable)
 #' @param y_predetermined (optional) boolean, true if the response variable \code{y} is predetermined with respect to \code{x}, i.e. cannot react within the same period to the shock. If true, the impulse response at horizon 0 is 0 (false by default)
 #' @param cumulate_y (optional) boolean, true if the impulse response of \code{y} should be cumulated, i.e. using the cumulative sum of \code{y} as the dependent variable (false by default)
 #' @param hmax (optional) integer, the maximum horizon up to which the impulse responses are computed. Should not exceed the \code{T_}-\code{lags} (24 by default)
@@ -262,6 +264,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' @return Returns a list with the following elements: \cr
 #' \item{\code{intervals}}{matrix containing the point estimates and confidence intervals for the impulse response function, for significance levels given in \code{alphas}}
 #' \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
+#' \item{\code{betahats}}{list of matrices (row vectors), giving the initial lasso estimate at each horizon}
 #' @examples
 #' X<-matrix(rnorm(100*100), nrow=100)
 #' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
@@ -269,7 +272,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' @references
 #' \insertAllCited{}
 #' @export
-HDLP=function(r=NULL, x, y, q=NULL,
+HDLP=function(r=NULL, x, y, q=NULL, manual_w=NULL, H=1,
                           y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
                           lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
                           progress_bar=TRUE){
@@ -285,11 +288,15 @@ HDLP=function(r=NULL, x, y, q=NULL,
   if(!is.null(q) && !is.matrix(q)){
     q<-as.matrix(q, nrow=nrow(x))
   }
+  if(!is.null(manual_w) && !is.matrix(manual_w)){
+    manual_w<-as.matrix(manual_w, nrow=nrow(x))
+  }
+  H<-H-1 #convert to C++ indexing
   if(!is.matrix(alphas)){
     alphas<-as.matrix(alphas, ncol=1)
   }
 
-  LP=.Rcpp_local_projection(r, x, y, q,
+  LP=.Rcpp_local_projection(r, x, y, q, manual_w, H,
                             y_predetermined,cumulate_y, hmax,
                             lags,alphas, init_partial, selection, PIconstant,
                             progress_bar)
@@ -301,5 +308,6 @@ HDLP=function(r=NULL, x, y, q=NULL,
   }
   dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
   return(list(intervals=LP$intervals,
-              Thetahat=LP$manual_Thetahat))
+              Thetahat=LP$manual_Thetahat,
+              betahats=LP$betahats))
 }

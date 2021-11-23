@@ -549,7 +549,7 @@ double Andrews91_truncation(const mat& What, const unsigned int& T_, const unsig
   return S_T;
 }
 
-mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
+mat LRVestimator_old(const vec& init_residual, const mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
   mat Omegahat(h,h,fill::zeros);
   vec uhat=init_residual;
   mat vhat=nw_residuals;
@@ -594,6 +594,40 @@ mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsign
   return Omegahat;
 }
 
+mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
+  mat Omegahat(h,h,fill::zeros);
+  vec uhat=init_residual;
+  mat vhat=nw_residuals;
+  mat What(T_,h);
+  mat Xi_ell(h,h);
+  for(unsigned int a=0;a<h;a++){
+    What.col(a)=uhat%vhat.col(a);
+  }
+  double Q_T_double;
+  int Q_T;
+  if(LRVtrunc==0 && T_multiplier==0){//If both the T_multiplier and LRVtrunc are 0, do a data-driven choice of tuning parameter
+    Q_T_double=std::ceil(Andrews91_truncation(What, T_, h));
+    Q_T= (int) Q_T_double;
+  }else{
+    Q_T_double=std::ceil(pow(T_multiplier*double(T_),LRVtrunc));
+    Q_T= (int) Q_T_double;
+  }
+  if(Q_T_double>double(T_)/2.0){
+    warning("Q_T is larger than T/2, taking Q_T=ceil(T/2) to prevent unexpected behavior");
+    Q_T_double=std::ceil(double(T_)/2.0);
+    Q_T= (int) Q_T_double;
+  }
+  if(Q_T<=1){ //If Q_T is zero or negative, Omegahat is Xi(0)
+    Omegahat=(1.0/double(T_))*What.t()*What;
+  }else{ //Otherwise,
+    Omegahat=(1.0/double(T_))*What.t()*What;
+    for(int ell=1; ell<=Q_T-1; ell++){
+      Xi_ell=(1.0/double(T_-ell))*(What.rows(ell,T_-1)).t()*What.rows(0,T_-ell-1);
+      Omegahat+=(1-double(ell)/double(Q_T))*(Xi_ell+Xi_ell.t());
+    }
+  }
+  return(Omegahat);
+}
 
 arma::vec unscale(const standardize_output s, const arma::vec& beta_H, const arma::uvec& H, const bool& demean, const bool& scale){
   unsigned int h=H.n_elem;
@@ -1293,7 +1327,7 @@ arma::mat Rcpp_make_lags(const arma::mat& x, const unsigned int& lags) {
 
 
 // [[Rcpp::export(.Rcpp_local_projection)]]
-List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const arma::vec& y, Nullable<NumericMatrix> q_,
+List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const arma::vec& y, Nullable<NumericMatrix> q_, Nullable<NumericMatrix> manual_w_, const arma::uvec& H,
                            const bool& y_predetermined,const bool& cumulate_y, const unsigned int& hmax,
                            const unsigned int& lags,const NumericVector& alphas, const bool& init_partial, const int& selection, const double& PIconstant,
                            const bool& progress_bar){
@@ -1308,24 +1342,42 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
   List g;
   List d;
   List temp;
+  arma::mat tempmat;
   NumericMatrix mThetahat;
   NumericMatrix mUpsilonhat_inv;
   NumericMatrix mnw_residuals;
 
-  arma::uvec H(1); H(0)=0;
-  LogicalVector nw_partials(1); nw_partials(0)=false;
+  List betahats(hmax+1);
+
+  //arma::uvec H(1); H(0)=0;
+  LogicalVector nw_partials(H.n_elem);
+  for(unsigned int i=0; i<H.n_elem; i++){
+    nw_partials(i)=false;
+  }
   int init_selection_type=selection;
-  arma::vec nw_selection_types(1); nw_selection_types(0)=selection;
+  arma::vec nw_selection_types(H.n_elem);
+  for(unsigned int i=0; i<H.n_elem; i++){
+    nw_selection_types(i)=false;
+  }
   double init_nonzero_limit=0.5;
-  arma::vec nw_nonzero_limits(1); nw_nonzero_limits(0)=0.5;
+  arma::vec nw_nonzero_limits(H.n_elem);
+  for(unsigned int i=0; i<H.n_elem; i++){
+    nw_nonzero_limits(i)=0.5;
+  }
   double init_opt_threshold=1e-4;
-  arma::vec nw_opt_thresholds(1); nw_opt_thresholds(0)=1e-4;
+  arma::vec nw_opt_thresholds(H.n_elem);
+  for(unsigned int i=0; i<H.n_elem; i++){
+    nw_opt_thresholds(i)=1e-4;
+  }
   int init_opt_type=3;
-  arma::vec nw_opt_types(1); nw_opt_types(0)=3;
+  arma::vec nw_opt_types(H.n_elem);
+  for(unsigned int i=0; i<H.n_elem; i++){
+    nw_opt_types(i)=3;
+  }
   Progress p(hmax+2, progress_bar);
   arma::mat intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
-  arma::mat R(1,1); R(0,0)=1;
-  arma::vec Q(1); Q(0)=0;
+  arma::mat R(H.n_elem, H.n_elem, fill::eye);
+  arma::vec Q(H.n_elem, fill::ones);
   unsigned int T_=y.n_elem;
   arma::mat r;
   if(r_.isNotNull()){
@@ -1337,11 +1389,19 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
     NumericMatrix q_temp(q_);
     q=as<arma::mat>(q_temp);
   }
-
+  arma::mat manual_w;
+  if(manual_w_.isNotNull()){
+    NumericMatrix manual_w_temp(manual_w_);
+    manual_w=as<arma::mat>(manual_w_temp);
+  }
   //estimate the LP at horizon 0 or 1, and save the nodewise parts
   if(sum(abs(x-y))<1e-8){ //if x and y are the same, estimate the LP at horizon 1
     intervals.row(0)=arma::mat(1,1+2*as<arma::mat>(alphas).n_elem, fill::ones);
-    w=join_horiz(r,x,q);
+    if(manual_w_.isNotNull()){
+      w=manual_w;
+    }else{
+      w=join_horiz(r,x,q);
+    }
     w_lags=Rcpp_make_lags(w, lags);
     regressors=join_horiz(x, r, w_lags);
     dependent=na_matrix(T_,1);
@@ -1368,10 +1428,13 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
     mUpsilonhat_inv=as<NumericMatrix>(d["Upsilonhat_inv"]);
     temp=d["nw"];
     mnw_residuals=as<NumericMatrix>(temp["residuals"]);
-
     p.increment();
   }else{//if x and y are different, estimate the LP at horizon 0
-    w=join_horiz(r,x,y,q);
+    if(manual_w_.isNotNull()){
+      w=manual_w;
+    }else{
+      w=join_horiz(r,x,y,q);
+    }
     w_lags=Rcpp_make_lags(w, lags);
     regressors=join_horiz(x, r, w_lags);
     dependent=y;
@@ -1390,9 +1453,11 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
       intervals.row(0)=arma::mat(1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
     }else{
       temp=d["inference"];
-      intervals.row(0)=as<arma::mat>(temp["intervals_unscaled"]);
+      tempmat=as<arma::mat>(temp["intervals_unscaled"]);
+      intervals.row(0)=tempmat.row(0);
+      temp=d["init"];
+      betahats(0)=temp["betahat"];
     }
-
     mThetahat=as<NumericMatrix>(d["Thetahat"]);
     mUpsilonhat_inv=as<NumericMatrix>(d["Upsilonhat_inv"]);
     List temp2=d["nw"];
@@ -1403,7 +1468,7 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
     if(h==1 && sum(abs(x-y))<1e-8){
       p.increment();
     }else{
-      arma::vec dependent_p(T_); dependent_p=na_matrix(T_,1);
+      //arma::vec dependent_p(T_); dependent_p=na_matrix(T_,1);
       dependent=na_matrix(T_,1);
       if(cumulate_y){
         for(unsigned int i=0; i<T_-h;i++){
@@ -1417,7 +1482,7 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
       joint_trimmed=naomit(join_horiz(dependent,regressors));
       dependent_trimmed=joint_trimmed.col(0);
       regressors_trimmed=joint_trimmed.cols(1, joint_trimmed.n_cols-1);
-      trimmed_residuals=mnw_residuals(Range(0,regressors_trimmed.n_rows-1), Range(0,0));
+      trimmed_residuals=mnw_residuals(Range(0,regressors_trimmed.n_rows-1), Range(0,H.n_elem-1));
       g=Rwrap_build_gridsXy(regressors_trimmed.n_rows, regressors_trimmed.n_cols, 50, regressors_trimmed, dependent_trimmed, H, true, true);
       d=Rwrap_partial_desparsified_lasso_inference(regressors_trimmed, dependent_trimmed, H, true, true, init_partial, nw_partials,
                                                    g["init_grid"], g["nw_grids"], init_selection_type, nw_selection_types,
@@ -1426,10 +1491,15 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
                                                    mThetahat, mUpsilonhat_inv,trimmed_residuals
       );
       temp=d["inference"];
-      intervals.row(h)=as<arma::mat>(temp["intervals"]);
+      tempmat=as<arma::mat>(temp["intervals_unscaled"]);
+      intervals.row(h)=tempmat.row(0);
+      temp=d["init"];
+      betahats(h)=temp["betahat"];
       p.increment();
     }
   }
   return List::create(Named("intervals")=intervals,
-                      Named("manual_Thetahat")=mThetahat);
+                      Named("manual_Thetahat")=mThetahat,
+                      Named("betahats")=betahats);
 }
+
