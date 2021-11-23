@@ -13,3 +13,7 @@
     .Call(`_desla_Rcpp_local_projection`, r_, x, y, q_, y_predetermined, cumulate_y, hmax, lags, alphas, init_partial, selection, PIconstant, progress_bar)
 }
 
+.Rcpp_local_projection_state_dependent <- function(r_, x, y, q_, state_dummy_, y_predetermined, cumulate_y, hmax, lags, alphas, init_partial, selection, PIconstant, progress_bar, OLS) {
+    .Call(`_desla_Rcpp_local_projection_state_dependent`, r_, x, y, q_, state_dummy_, y_predetermined, cumulate_y, hmax, lags, alphas, init_partial, selection, PIconstant, progress_bar, OLS)
+}
+

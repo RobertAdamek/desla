@@ -262,6 +262,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' @return Returns a list with the following elements: \cr
 #' \item{\code{intervals}}{matrix containing the point estimates and confidence intervals for the impulse response function, for significance levels given in \code{alphas}}
 #' \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
+#' \item{\code{betahats}}{list of matrices (row vectors), giving the initial lasso estimate at each horizon}
 #' @examples
 #' X<-matrix(rnorm(100*100), nrow=100)
 #' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
@@ -301,5 +302,71 @@ HDLP=function(r=NULL, x, y, q=NULL,
   }
   dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
   return(list(intervals=LP$intervals,
-              Thetahat=LP$manual_Thetahat))
+              Thetahat=LP$manual_Thetahat,
+              betahats=LP$betahats))
+}
+
+#' @importFrom Rdpack reprompt
+#' @title High-Dimensional Local Projection
+#' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
+#' @param state_dummy (optional) matrix with \code{T_} rows, containing dummy variables that define the states. If only a vector is given, a second state is defined as \code{1-state_dummy}. Otherwise a state is defined to match each column (NULL by default)
+#' @param OLS (optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)
+#' @inheritParams HDLP
+#' @return Returns a list with the following elements: \cr
+#' \item{\code{intervals}}{list of matrices containing the point estimates and confidence intervals for the impulse response functions in each state, for significance levels given in \code{alphas}}
+#' \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
+#' \item{\code{betahats}}{list of matrices (column vectors), giving the initial lasso estimate at each horizon}
+#' @examples
+#' X<-matrix(rnorm(100*100), nrow=100)
+#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
+#' h<-HDLP(x=X[,4], y=y, q=X[,-4], hmax=5, lags=1)
+#' @references
+#' \insertAllCited{}
+#' @export
+HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
+              y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
+              lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
+              progress_bar=TRUE, OLS=FALSE){
+  if(!is.matrix(x)){
+    x<-as.matrix(x, ncol=1)
+  }
+  if(!is.matrix(y)){
+    y<-as.matrix(y, ncol=1)
+  }
+  if(!is.null(r) && !is.matrix(r)){
+    r<-as.matrix(r, nrow=nrow(x))
+  }
+  if(!is.null(q) && !is.matrix(q)){
+    q<-as.matrix(q, nrow=nrow(x))
+  }
+  if(!is.matrix(alphas)){
+    alphas<-as.matrix(alphas, ncol=1)
+  }
+  if(!is.null(state_dummy)){
+    if(!is.matrix(state_dummy)){
+      state_dummy<-as.matrix(state_dummy, nrow=nrow(x))
+    }
+    if(ncol(state_dummy)==1){
+      state_dummy<-cbind(state_dummy, 1-state_dummy)
+    }
+  }
+  LP=.Rcpp_local_projection_state_dependent(r, x, y, q, state_dummy,
+                            y_predetermined,cumulate_y, hmax,
+                            lags,alphas, init_partial, selection, PIconstant,
+                            progress_bar, OLS)
+  CInames=rep("",2*length(alphas)+1)
+  CInames[length(alphas)+1]="bhat"
+  for(i in 1:length(alphas)){
+    CInames[i]=paste("lower ", alphas[i], sep="")
+    CInames[2*length(alphas)+2-i]=paste("upper ", alphas[i], sep="")
+  }
+  for(i in 1:length(LP$intervals)){
+    dimnames(LP$intervals[[i]])<-list(horizon=0:hmax, CInames)
+  }
+  if(!is.null(state_dummy)){
+    names(LP$intervals)<-paste0("state ", 1:ncol(state_dummy))
+  }
+  return(list(intervals=LP$intervals,
+              Thetahat=LP$manual_Thetahat,
+              betahats=LP$betahats))
 }

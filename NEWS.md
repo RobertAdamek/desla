@@ -1,10 +1,9 @@
-## Resubmission
-This is a resubmission. In this version I have:
+# desla 0.1.0.9000
 
-* Fixed the code to use "TRUE" instead of "T" and "FALSE" instead of "F". Additionally, any usage of "T" as a variable name is replaced with "T_", both in function documentation, and the source code
+* Added the function HDLP_state_dependent, which allows for estimation of impulse responses in different states, and also an option to estimate them with OLS rather than desparsified lasso, using the same long-run variance estimator.
 
-* All references in the The DESCRIPTION file now include a doi or arXiv URL
+* Fixed bug in the long run covariance function, which occasionally caused crashes
 
-# desla 0.1.0
+# desla 0.1.0 (commit 3b0833b)
 
 * First published version of the package

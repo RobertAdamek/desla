@@ -89,11 +89,37 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// Rcpp_local_projection_state_dependent
+List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arma::vec& x, const arma::vec& y, Nullable<NumericMatrix> q_, Nullable<NumericMatrix> state_dummy_, const bool& y_predetermined, const bool& cumulate_y, const unsigned int& hmax, const unsigned int& lags, const NumericVector& alphas, const bool& init_partial, const int& selection, const double& PIconstant, const bool& progress_bar, bool OLS);
+RcppExport SEXP _desla_Rcpp_local_projection_state_dependent(SEXP r_SEXP, SEXP xSEXP, SEXP ySEXP, SEXP q_SEXP, SEXP state_dummy_SEXP, SEXP y_predeterminedSEXP, SEXP cumulate_ySEXP, SEXP hmaxSEXP, SEXP lagsSEXP, SEXP alphasSEXP, SEXP init_partialSEXP, SEXP selectionSEXP, SEXP PIconstantSEXP, SEXP progress_barSEXP, SEXP OLSSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Nullable<NumericMatrix> >::type r_(r_SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericMatrix> >::type q_(q_SEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericMatrix> >::type state_dummy_(state_dummy_SEXP);
+    Rcpp::traits::input_parameter< const bool& >::type y_predetermined(y_predeterminedSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type cumulate_y(cumulate_ySEXP);
+    Rcpp::traits::input_parameter< const unsigned int& >::type hmax(hmaxSEXP);
+    Rcpp::traits::input_parameter< const unsigned int& >::type lags(lagsSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type alphas(alphasSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type init_partial(init_partialSEXP);
+    Rcpp::traits::input_parameter< const int& >::type selection(selectionSEXP);
+    Rcpp::traits::input_parameter< const double& >::type PIconstant(PIconstantSEXP);
+    Rcpp::traits::input_parameter< const bool& >::type progress_bar(progress_barSEXP);
+    Rcpp::traits::input_parameter< bool >::type OLS(OLSSEXP);
+    rcpp_result_gen = Rcpp::wrap(Rcpp_local_projection_state_dependent(r_, x, y, q_, state_dummy_, y_predetermined, cumulate_y, hmax, lags, alphas, init_partial, selection, PIconstant, progress_bar, OLS));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_desla_Rwrap_partial_desparsified_lasso_inference", (DL_FUNC) &_desla_Rwrap_partial_desparsified_lasso_inference, 27},
     {"_desla_Rwrap_build_gridsXy", (DL_FUNC) &_desla_Rwrap_build_gridsXy, 8},
     {"_desla_Rcpp_local_projection", (DL_FUNC) &_desla_Rcpp_local_projection, 13},
+    {"_desla_Rcpp_local_projection_state_dependent", (DL_FUNC) &_desla_Rcpp_local_projection_state_dependent, 15},
     {NULL, NULL, 0}
 };
 
