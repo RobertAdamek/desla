@@ -1397,22 +1397,33 @@ List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
 
   List betahats(hmax+1);
 
+
   arma::uvec H(1); H(0)=0;
   LogicalVector nw_partials(1);nw_partials(0)=false;
 
   int init_selection_type=selection;
   arma::vec nw_selection_types(1); nw_selection_types(0)=false;
+
   double init_nonzero_limit=0.5;
-  arma::vec nw_nonzero_limits(1); nw_nonzero_limits(0)=0.5;
+  arma::vec nw_nonzero_limits(H.n_elem);
+  for(unsigned int i=0; i<H.n_elem; i++){
+    nw_nonzero_limits(i)=0.5;
+  }
   double init_opt_threshold=1e-4;
-  arma::vec nw_opt_thresholds(1); nw_opt_thresholds(0)=1e-4;
+  arma::vec nw_opt_thresholds(H.n_elem);
+  for(unsigned int i=0; i<H.n_elem; i++){
+    nw_opt_thresholds(i)=1e-4;
+  }
+
   int init_opt_type=3;
+
   arma::vec nw_opt_types(1);nw_opt_types(0)=3;
 
   Progress p(hmax+2, progress_bar);
   arma::mat intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
   arma::mat R(1,1, fill::eye);
   arma::vec Q(1, fill::ones);
+
   unsigned int T_=y.n_elem;
   arma::mat r;
   if(r_.isNotNull()){
@@ -1725,3 +1736,4 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
                       Named("manual_Thetahat")=mThetahat,
                       Named("betahats")=betahats);
 }
+
