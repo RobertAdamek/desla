@@ -1606,8 +1606,6 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
   arma::mat mThetahat;
   arma::mat mUpsilonhat_inv;
   arma::mat mnw_residuals;
-
-
   arma::uvec H;
   arma::mat state_dummy;
   unsigned int states=1;
@@ -1663,7 +1661,6 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
   arma::mat R(H.n_elem, H.n_elem, fill::eye);
   arma::vec Q(H.n_elem, fill::ones);
   unsigned int T_=y.n_elem;
-
   //check if any columns in x y are the same
   bool is_same=false;
   if(sum(abs(x-y))<1e-8){
@@ -1735,12 +1732,13 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
   for(unsigned int i=0; i<states; i++){
     if(y_predetermined){
     }else if(is_same && states==1){
-      intervals.slice(i)=mat(hmax+1,1+2*as<arma::mat>(alphas).n_elem-1, fill::ones);
+      //intervals.slice(i)=mat(hmax+1,1+2*as<arma::mat>(alphas).n_elem-1, fill::ones);
+      arma::mat mat_of_ones(1,1+2*as<arma::mat>(alphas).n_elem, fill::ones);
+      intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=mat_of_ones.row(0);
     }else{
       intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);
     }
   }
-
   p.increment();
   if(threads>0){
 #ifdef _OPENMP
