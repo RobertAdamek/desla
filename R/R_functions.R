@@ -315,6 +315,7 @@ HDLP=function(r=NULL, x, y, q=NULL,
 #' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
 #' @param state_dummy (optional) matrix with \code{T_} rows, containing dummy variables that define the states. If only a vector is given, a second state is defined as \code{1-state_dummy}. Otherwise a state is defined to match each column (NULL by default)
 #' @param OLS (optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)
+#' @param threads (optional) integer, how many threads should be used for parallel computing. Parallelization is not done when threads=0. (0 by default)
 #' @inheritParams HDLP
 #' @return Returns a list with the following elements: \cr
 #' \item{\code{intervals}}{list of matrices containing the point estimates and confidence intervals for the impulse response functions in each state, for significance levels given in \code{alphas}}

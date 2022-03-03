@@ -19,7 +19,8 @@ HDLP_state_dependent(
   selection = 4,
   PIconstant = 0.8,
   progress_bar = TRUE,
-  OLS = FALSE
+  OLS = FALSE,
+  threads = 0
 )
 }
 \arguments{
@@ -52,6 +53,8 @@ HDLP_state_dependent(
 \item{progress_bar}{(optional) boolean, true if a progress bar should be displayed during execution (true by default)}
 
 \item{OLS}{(optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)}
+
+\item{threads}{(optional) integer, how many threads should be used for parallel computing. Parallelization is not done when threads=0. (0 by default)}
 }
 \value{
 Returns a list with the following elements: \cr
