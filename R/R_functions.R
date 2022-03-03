@@ -290,6 +290,10 @@ HDLP=function(r=NULL, x, y, q=NULL,
     alphas<-as.matrix(alphas, ncol=1)
   }
 
+  if(nrow(y)<hmax+lags+5){
+    warning("hmax and lags are too large for the sample size")
+  }
+
   LP=.Rcpp_local_projection(r, x, y, q,
                             y_predetermined,cumulate_y, hmax,
                             lags,alphas, init_partial, selection, PIconstant,
@@ -326,7 +330,7 @@ HDLP=function(r=NULL, x, y, q=NULL,
 HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
               y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
               lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
-              progress_bar=TRUE, OLS=FALSE){
+              progress_bar=TRUE, OLS=FALSE, threads=0){
   if(!is.matrix(x)){
     x<-as.matrix(x, ncol=1)
   }
@@ -353,20 +357,27 @@ HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
   LP=.Rcpp_local_projection_state_dependent(r, x, y, q, state_dummy,
                             y_predetermined,cumulate_y, hmax,
                             lags,alphas, init_partial, selection, PIconstant,
-                            progress_bar, OLS)
+                            progress_bar, OLS, threads)
   CInames=rep("",2*length(alphas)+1)
   CInames[length(alphas)+1]="bhat"
   for(i in 1:length(alphas)){
     CInames[i]=paste("lower ", alphas[i], sep="")
     CInames[2*length(alphas)+2-i]=paste("upper ", alphas[i], sep="")
   }
-  for(i in 1:length(LP$intervals)){
-    dimnames(LP$intervals[[i]])<-list(horizon=0:hmax, CInames)
+  if(is.null(state_dummy)){
+    dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
+  }else{
+    dimnames(LP$intervals)<-list(horizon=0:hmax, CInames, paste0("state ", 1:ncol(state_dummy)))
   }
-  if(!is.null(state_dummy)){
-    names(LP$intervals)<-paste0("state ", 1:ncol(state_dummy))
-  }
+  #for(i in 1:length(LP$intervals)){
+  #  dimnames(LP$intervals[[i]])<-list(horizon=0:hmax, CInames)
+  #}
+  #if(!is.null(state_dummy)){
+  #  names(LP$intervals)<-paste0("state ", 1:ncol(state_dummy))
+  #}
   return(list(intervals=LP$intervals,
               Thetahat=LP$manual_Thetahat,
-              betahats=LP$betahats))
+              betahats=LP$betahats,
+              regressors=LP$regressors,
+              regressors_trimmed=LP$regressors_trimmed))
 }

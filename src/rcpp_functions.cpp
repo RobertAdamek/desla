@@ -164,6 +164,8 @@ struct standardize_output{
   arma::vec X_sds;
 };
 
+
+
 //auxilliary functions
 
 selection_output selectBIC(const arma::mat& betahats, const arma::mat& X, const arma::vec& y, const arma::vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit){
@@ -943,10 +945,18 @@ partial_lasso_selected_output partial_lasso_selected(const arma::mat& X, const a
   return ret;
 }
 
+struct nodewise_manual{
+  bool use_manual;
+  arma::mat manual_Thetahat;
+  arma::mat manual_Upsilonhat_inv;
+  arma::mat manual_nw_residuals;
+};
+
 partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids,
                                                              const int& init_selection_type, const arma::vec& nw_selection_types,const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits,
                                                              const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types, const double& PIconstant, const double& PIprobability,
-                                                             Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_){
+                                                             //Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_
+                                                             nodewise_manual nm){
 
 
   partial_lasso_selected_output init_L=partial_lasso_selected(X, y, H, init_partial, init_grid, init_selection_type, init_nonzero_limit,
@@ -967,15 +977,19 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
   partial_lasso_selected_output nw_L;
   std::list<arma::uvec> nw_nonzero_poss;
   //If we manually provide ALL the necessary nodewise components, we don't need to estimate them any more
-  if(manual_Thetahat_.isNotNull() && manual_Upsilonhat_inv_.isNotNull() && manual_nw_residuals_.isNotNull()){
-    NumericMatrix temp_manual_Thetahat(manual_Thetahat_);  // conversion from Nullable<NumericMatrix> to NumericMatrix
-    Thetahat=as<arma::mat>(temp_manual_Thetahat); //conversion from NumericMatrix to arma::mat
+  //if(manual_Thetahat_.isNotNull() && manual_Upsilonhat_inv_.isNotNull() && manual_nw_residuals_.isNotNull()){
+  //  NumericMatrix temp_manual_Thetahat(manual_Thetahat_);  // conversion from Nullable<NumericMatrix> to NumericMatrix
+  //  Thetahat=as<arma::mat>(temp_manual_Thetahat); //conversion from NumericMatrix to arma::mat
 
-    NumericMatrix temp_manual_Upsilonhat_inv(manual_Upsilonhat_inv_);   // conversion from Nullable<NumericMatrix> to NumericMatrix
-    Upsilonhat_inv=as<arma::mat>(temp_manual_Upsilonhat_inv); //conversion from NumericMatrix to arma::mat
+  //  NumericMatrix temp_manual_Upsilonhat_inv(manual_Upsilonhat_inv_);   // conversion from Nullable<NumericMatrix> to NumericMatrix
+  //  Upsilonhat_inv=as<arma::mat>(temp_manual_Upsilonhat_inv); //conversion from NumericMatrix to arma::mat
 
-    NumericMatrix temp_manual_nw_residuals(manual_nw_residuals_); // conversion from Nullable<NumericMatrix> to NumericMatrix
-    nw_residuals=as<arma::mat>(temp_manual_nw_residuals); //conversion from NumericMatrix to arma::mat
+  //  NumericMatrix temp_manual_nw_residuals(manual_nw_residuals_); // conversion from Nullable<NumericMatrix> to NumericMatrix
+  //  nw_residuals=as<arma::mat>(temp_manual_nw_residuals); //conversion from NumericMatrix to arma::mat
+  if(nm.use_manual){
+    Thetahat=nm.manual_Thetahat;
+    Upsilonhat_inv=nm.manual_Upsilonhat_inv;
+    nw_residuals=nm.manual_nw_residuals;
   }else{
     for(i=0;i<h;i++){
       j=H(i);
@@ -1009,22 +1023,22 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
       nw_nonzero_poss.push_back(nw_L.nonzero_pos);
     }
     //If only some of the nodewise components were provided, here they overwrite the ones that were just calculated
-    if(manual_Upsilonhat_inv_.isNotNull()){
-      NumericMatrix temp_manual_Upsilonhat_inv(manual_Upsilonhat_inv_);   // conversion from Nullable<NumericMatrix> to NumericMatrix
-      Upsilonhat_inv=as<arma::mat>(temp_manual_Upsilonhat_inv); //conversion from NumericMatrix to arma::mat
-    }
-    if(manual_nw_residuals_.isNotNull()){
-      NumericMatrix temp_manual_nw_residuals(manual_nw_residuals_); // conversion from Nullable<NumericMatrix> to NumericMatrix
-      nw_residuals=as<arma::mat>(temp_manual_nw_residuals); //conversion from NumericMatrix to arma::mat
-    }
-    if(manual_Thetahat_.isNotNull()){
-      NumericMatrix temp_manual_Thetahat(manual_Thetahat_);  // conversion from Nullable<NumericMatrix> to NumericMatrix
-      Thetahat=as<arma::mat>(temp_manual_Thetahat); //conversion from NumericMatrix to arma::mat
-    }else{
-      Thetahat=Upsilonhat_inv*Gammahat; //Note that this Thetahat can be calculated with the manually provided Upsilonhat_inv
-    }
+    //if(manual_Upsilonhat_inv_.isNotNull()){
+    //  NumericMatrix temp_manual_Upsilonhat_inv(manual_Upsilonhat_inv_);   // conversion from Nullable<NumericMatrix> to NumericMatrix
+    //  Upsilonhat_inv=as<arma::mat>(temp_manual_Upsilonhat_inv); //conversion from NumericMatrix to arma::mat
+    //}
+    //if(manual_nw_residuals_.isNotNull()){
+    //  NumericMatrix temp_manual_nw_residuals(manual_nw_residuals_); // conversion from Nullable<NumericMatrix> to NumericMatrix
+    //  nw_residuals=as<arma::mat>(temp_manual_nw_residuals); //conversion from NumericMatrix to arma::mat
+    //}
+    //if(manual_Thetahat_.isNotNull()){
+    //  NumericMatrix temp_manual_Thetahat(manual_Thetahat_);  // conversion from Nullable<NumericMatrix> to NumericMatrix
+    //  Thetahat=as<arma::mat>(temp_manual_Thetahat); //conversion from NumericMatrix to arma::mat
+    //}else{
+    //  Thetahat=Upsilonhat_inv*Gammahat; //Note that this Thetahat can be calculated with the manually provided Upsilonhat_inv
+    //}
   }
-
+  Thetahat=Upsilonhat_inv*Gammahat;
   bhat_1=init_L.betahat_1+Thetahat*X.t()*(init_L.residual)/double(T_);
 
   partial_desparsified_lasso_output ret;
@@ -1078,11 +1092,13 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
                                                                                  const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
                                                                                  const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types,
                                                                                  const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability,
-                                                                                 Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_){
+                                                                                 //Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_
+                                                                                 nodewise_manual nm){
   standardize_output s=standardize(X, y, demean, scale);
   partial_desparsified_lasso_output PDL=partial_desparsified_lasso(s.X_scaled, s.y_scaled, H, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                                    init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types, PIconstant, PIprobability,
-                                                                   manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_);
+                                                                   //manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_
+                                                                   nm);
   arma::vec bhat_1_unscaled=unscale(s, PDL.bhat_1, H, demean, scale);
   arma::mat Omegahat=LRVestimator(PDL.init_residual, PDL.nw_residuals, PDL.N, PDL.T_, PDL.h, LRVtrunc, T_multiplier);
   arma::vec z_quantiles=qnorm(alphas/2.0,0.0,1.0,false,false);
@@ -1207,11 +1223,27 @@ List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::
                                                 const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types,
                                                 const double& LRVtrunc, const double& T_multiplier, const NumericVector alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability,
                                                 Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_){
+  //If we manually provide ALL the necessary nodewise components, we don't need to estimate them any more
+  nodewise_manual nm;
+  if(manual_Thetahat_.isNotNull() && manual_Upsilonhat_inv_.isNotNull() && manual_nw_residuals_.isNotNull()){
+    nm.use_manual=true;
+    NumericMatrix temp_manual_Thetahat(manual_Thetahat_);  // conversion from Nullable<NumericMatrix> to NumericMatrix
+    nm.manual_Thetahat=as<arma::mat>(temp_manual_Thetahat); //conversion from NumericMatrix to arma::mat
+
+    NumericMatrix temp_manual_Upsilonhat_inv(manual_Upsilonhat_inv_);   // conversion from Nullable<NumericMatrix> to NumericMatrix
+    nm.manual_Upsilonhat_inv=as<arma::mat>(temp_manual_Upsilonhat_inv); //conversion from NumericMatrix to arma::mat
+
+    NumericMatrix temp_manual_nw_residuals(manual_nw_residuals_); // conversion from Nullable<NumericMatrix> to NumericMatrix
+    nm.manual_nw_residuals=as<arma::mat>(temp_manual_nw_residuals); //conversion from NumericMatrix to arma::
+  }else{
+    nm.use_manual=false;
+  }
   partial_desparsified_lasso_inference_output PDLI=partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials,
                                                                                         init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                                                         init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
                                                                                         LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability,
-                                                                                        manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_);
+                                                                                        //manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_
+                                                                                        nm);
   List misc=List::create(Named("N")=PDLI.N,
                          Named("T_")=PDLI.T_,
                          Named("h")=PDLI.h,
@@ -1275,8 +1307,19 @@ List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::
   );
 }
 
-List OLS_HAC(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale,
-             const double& LRVtrunc, const double& T_multiplier, const NumericVector alphas){
+struct reg_output{
+  arma::mat Omegahat;
+  arma::vec z_quantiles;
+  arma::mat intervals;
+  arma::mat intervals_unscaled;
+  arma::vec betahat;
+  arma::vec b_H;
+  arma::vec b_H_unscaled;
+  arma::mat Thetahat;
+};
+
+reg_output OLS_HAC(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale,
+                   const double& LRVtrunc, const double& T_multiplier, const NumericVector alphas){
   standardize_output s=standardize(X, y, demean, scale);
   unsigned int uiT=X.n_rows;
   unsigned int uiN=X.n_cols;
@@ -1312,20 +1355,31 @@ List OLS_HAC(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, con
   }
   arma::vec b_H_unscaled=unscale(s, b_H, H, demean, scale);
 
-  List init=List::create(Named("betahat")=betahat
-  );
-  List inference=List::create(Named("Omegahat")=Omegahat,
-                              Named("z_quantiles")=z_quantiles,
-                              Named("intervals")=intervals,
-                              Named("intervals_unscaled")=intervals_unscaled
-  );
-  return List::create(Named("inference")=inference,
-                      Named("init")=init,
-                      Named("b_H")=b_H,
-                      Named("b_H_unscaled")=b_H_unscaled,
-                      Named("Thetahat")=Thetahat
-  );
+  //List init=List::create(Named("betahat")=betahat
+  //);
+  //List inference=List::create(Named("Omegahat")=Omegahat,
+  //                            Named("z_quantiles")=z_quantiles,
+  //                            Named("intervals")=intervals,
+  //                            Named("intervals_unscaled")=intervals_unscaled
+  //);
+  //return List::create(Named("inference")=inference,
+  //                    Named("init")=init,
+  //                   Named("b_H")=b_H,
+  //                    Named("b_H_unscaled")=b_H_unscaled,
+  //                    Named("Thetahat")=Thetahat
+  //);
+  reg_output o;
+  o.Omegahat=Omegahat;
+  o.z_quantiles=z_quantiles;
+  o.intervals=intervals;
+  o.intervals_unscaled=intervals_unscaled;
+  o.betahat=betahat;
+  o.b_H=b_H;
+  o.b_H_unscaled=b_H_unscaled;
+  o.Thetahat=Thetahat;
+  return o;
 }
+
 
 // //' Generate initial and nodewise lambda grids
 // //' @param T_ number of rows in the X matrix
@@ -1366,7 +1420,8 @@ arma::mat naomit(arma::mat x){
 arma::mat Rcpp_make_lags(const arma::mat& x, const unsigned int& lags) {
   unsigned int N=x.n_cols;
   unsigned int T_=x.n_rows;
-  arma::mat ret=na_matrix(T_, N*lags);
+  //arma::mat ret=na_matrix(T_, N*lags);
+  arma::mat ret=mat(T_, N*lags, fill::zeros);
   for(unsigned int i=1; i<=lags; i++){
     //ret[(1+i):T_,((i-1)*N+1):(i*N)]<-x[1:(T_-i),]
     ret(span(i,T_-1),span((i-1)*N,i*N-1))=x(span(0,(T_-1-i)),span(0,N-1));
@@ -1539,7 +1594,7 @@ arma::mat dummify(const arma::mat& dummy, const arma::mat& M){
 List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arma::vec& x, const arma::vec& y, Nullable<NumericMatrix> q_, Nullable<NumericMatrix> state_dummy_,
                                            const bool& y_predetermined,const bool& cumulate_y, const unsigned int& hmax,
                                            const unsigned int& lags,const NumericVector& alphas, const bool& init_partial, const int& selection, const double& PIconstant,
-                                           const bool& progress_bar, bool OLS){
+                                           const bool& progress_bar, bool OLS, unsigned int threads){
   arma::mat w;
   arma::mat w_lags;
   arma::mat regressors;
@@ -1547,16 +1602,12 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
   arma::mat joint_trimmed;
   arma::mat dependent_trimmed;
   arma::mat regressors_trimmed;
-  NumericMatrix trimmed_residuals;
-  List g;
-  List d;
-  List temp;
   arma::mat tempmat;
-  NumericMatrix mThetahat;
-  NumericMatrix mUpsilonhat_inv;
-  NumericMatrix mnw_residuals;
+  arma::mat mThetahat;
+  arma::mat mUpsilonhat_inv;
+  arma::mat mnw_residuals;
 
-  List betahats(hmax+1);
+
   arma::uvec H;
   arma::mat state_dummy;
   unsigned int states=1;
@@ -1604,11 +1655,10 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
     nw_opt_types(i)=3;
   }
   Progress p(hmax+2, progress_bar);
-  //arma::mat intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
-  arma::mat intervals_temp(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
-  List intervals(states);
+  arma::mat intervals_zeros(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
+  arma::cube intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, states);
   for(unsigned int i=0; i<states; i++){
-    intervals(i)=intervals_temp;
+    intervals.slice(i)=intervals_zeros;
   }
   arma::mat R(H.n_elem, H.n_elem, fill::eye);
   arma::vec Q(H.n_elem, fill::ones);
@@ -1635,7 +1685,7 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
     regressors=join_horiz(x, r, w_lags);
   }
   if(is_same && states==1){//If x and y are the same, estimate at horizon 1. The only parts taken from this step will be the nodewise regressions.
-    dependent=na_matrix(T_,1);
+    dependent=mat(T_,1,fill::zeros);
     if(cumulate_y){
       for(unsigned int i=0; i<T_-1;i++){
         dependent.row(i)=sum(y.rows(i,i+1));
@@ -1645,13 +1695,14 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
         dependent.row(i)=y.row(i+1);
       }
     }
+    joint_trimmed=join_horiz(dependent,regressors); joint_trimmed=joint_trimmed.rows(lags,T_-1-1);
   }else{//If they're different, estimate horizon 0 normally.
     dependent=y;
+    joint_trimmed=join_horiz(dependent,regressors); joint_trimmed=joint_trimmed.rows(lags,T_-0-1);
   }
-  joint_trimmed=naomit(join_horiz(dependent,regressors));
-
   dependent_trimmed=joint_trimmed.col(0);
   regressors_trimmed=joint_trimmed.cols(1, joint_trimmed.n_cols-1);
+  reg_output d;
   if(OLS && regressors_trimmed.n_cols>regressors_trimmed.n_rows){
     warning("number of variables larger than sample size, taking OLS=FALSE to prevent errors");
     OLS=false;
@@ -1659,81 +1710,143 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
   if(OLS){
     d=OLS_HAC(regressors_trimmed, dependent_trimmed, H, true, true, 0, 0, alphas);
   }else{
-    g=Rwrap_build_gridsXy(regressors_trimmed.n_rows, regressors_trimmed.n_cols, 50, regressors_trimmed, dependent_trimmed, H, true, true);
-    d=Rwrap_partial_desparsified_lasso_inference(regressors_trimmed, dependent_trimmed, H, true, true, init_partial, nw_partials,
-                                                 g["init_grid"], g["nw_grids"], init_selection_type, nw_selection_types,
-                                                 init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                 0, 0, alphas, R, Q, PIconstant, 0.05,
-                                                 R_NilValue, R_NilValue, R_NilValue);
-    mThetahat=as<NumericMatrix>(d["Thetahat"]);
-    mUpsilonhat_inv=as<NumericMatrix>(d["Upsilonhat_inv"]);
-    List temp2=d["nw"];
-    mnw_residuals=as<NumericMatrix>(temp2["residuals"]);
+    nodewise_manual nm;
+    nm.use_manual=false;
+    grids_output g=build_gridsXy(regressors_trimmed.n_rows, regressors_trimmed.n_cols, 50, regressors_trimmed, dependent_trimmed, H, true, true);
+    partial_desparsified_lasso_inference_output pdli=partial_desparsified_lasso_inference(regressors_trimmed, dependent_trimmed, H, true, true, init_partial, nw_partials,
+                                                                                          g.init_grid, g.nw_grids, init_selection_type, nw_selection_types,
+                                                                                          init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
+                                                                                          0, 0, alphas, R, Q, PIconstant, 0.05,
+                                                                                          nm);
+    mThetahat=pdli.Thetahat;
+    mUpsilonhat_inv=pdli.Upsilonhat_inv;
+    mnw_residuals=pdli.nw_residuals;
+    d.Omegahat=pdli.Omegahat;
+    d.z_quantiles=pdli.z_quantiles;
+    d.intervals=pdli.intervals;
+    d.intervals_unscaled=pdli.intervals_unscaled;
+    d.betahat=pdli.betahat;
+    d.b_H=pdli.bhat_1;
+    d.b_H_unscaled=pdli.bhat_1_unscaled;
+    d.Thetahat=pdli.Thetahat;
   }
-  temp=d["inference"];
-  tempmat=as<arma::mat>(temp["intervals_unscaled"]);
-  temp=d["init"];
-  betahats(0)=temp["betahat"];
-
+  arma::mat betahats(regressors_trimmed.n_cols,hmax+1,fill::zeros);
+  betahats.col(0)=d.betahat;
   for(unsigned int i=0; i<states; i++){
     if(y_predetermined){
-      intervals_temp=as<arma::mat>(intervals(i));
-      intervals_temp.row(0)=arma::mat(1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);//if y is predetermined with respect to x, the response is 0 by assumption
-      intervals(i)=intervals_temp;
     }else if(is_same && states==1){
-      intervals_temp=as<arma::mat>(intervals(i));
-      intervals_temp.row(0)=arma::mat(1,1+2*as<arma::mat>(alphas).n_elem, fill::ones);//if x is the same as y, the response is 1 by assumption (only if no state dependence)
-      intervals(i)=intervals_temp;
+      intervals.slice(i)=mat(hmax+1,1+2*as<arma::mat>(alphas).n_elem-1, fill::ones);
     }else{
-      intervals_temp=as<arma::mat>(intervals(i));
-      intervals_temp.row(0)=tempmat.row(i);
-      intervals(i)=intervals_temp;
+      intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);
     }
   }
 
   p.increment();
+  if(threads>0){
+#ifdef _OPENMP
+    omp_set_num_threads(threads);
+#endif
+# pragma omp parallel for
+    for(unsigned int h=1; h<=hmax;h++){
+      reg_output d_p;
+      arma::mat dependent_p;
+      dependent_p=mat(T_,1,fill::zeros);
+      if(cumulate_y){
+        for(unsigned int i=0; i<T_-h;i++){
+          dependent_p.row(i)=sum(y.rows(i,i+h));
+        }
+      }else{
+        for(unsigned int k=0; k<T_-h;k++){
+          dependent_p.row(k)=y.row(k+h);
+        }
+      }
+      arma::mat joint_trimmed_p=join_horiz(dependent_p,regressors); joint_trimmed_p=joint_trimmed_p.rows(lags,T_-h-1);
+      arma::mat dependent_trimmed_p=joint_trimmed_p.col(0);
+      arma::mat regressors_trimmed_p=joint_trimmed_p.cols(1, joint_trimmed.n_cols-1);
+      if(OLS){
+        d_p=OLS_HAC(regressors_trimmed_p, dependent_trimmed_p, H, true, true, 0, 0, alphas);
+      }else{
+        nodewise_manual nm_p;
+        nm_p.use_manual=true;
+        nm_p.manual_Thetahat=mThetahat;
+        nm_p.manual_Upsilonhat_inv=mUpsilonhat_inv;
+        nm_p.manual_nw_residuals=mnw_residuals(span(0,regressors_trimmed_p.n_rows-1), span(0,H.n_elem-1));
+        grids_output g_p=build_gridsXy(regressors_trimmed_p.n_rows, regressors_trimmed_p.n_cols, 50, regressors_trimmed_p, dependent_trimmed_p, H, true, true);
+        partial_desparsified_lasso_inference_output pdli_p=partial_desparsified_lasso_inference(regressors_trimmed_p, dependent_trimmed_p, H, true, true, init_partial, nw_partials,
+                                                                                                g_p.init_grid, g_p.nw_grids, init_selection_type, nw_selection_types,
+                                                                                                init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
+                                                                                                0, 0, alphas, R, Q, PIconstant, 0.05,
+                                                                                                nm_p);
+        d_p.Omegahat=pdli_p.Omegahat;
+        d_p.z_quantiles=pdli_p.z_quantiles;
+        d_p.intervals=pdli_p.intervals;
+        d_p.intervals_unscaled=pdli_p.intervals_unscaled;
+        d_p.betahat=pdli_p.betahat;
+        d_p.b_H=pdli_p.bhat_1;
+        d_p.b_H_unscaled=pdli_p.bhat_1_unscaled;
+        d_p.Thetahat=pdli_p.Thetahat;
+      }
+      betahats.col(h)=d_p.betahat;
+      for(unsigned int j=0; j<states; j++){
+        intervals(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled).row(j);
+      }
+      p.increment();
 
-  for(unsigned int h=1; h<=hmax;h++){
-    //arma::vec dependent_p(T_); dependent_p=na_matrix(T_,1);
-    dependent=na_matrix(T_,1);
-    if(cumulate_y){
-      for(unsigned int i=0; i<T_-h;i++){
-        dependent.row(i)=sum(y.rows(i,i+h));
+    }
+  }else{
+#ifdef _OPENMP
+    omp_set_num_threads(threads);
+#endif
+# pragma omp parallel for
+    for(unsigned int h=1; h<=hmax;h++){
+      reg_output d_p;
+      arma::mat dependent_p;
+      dependent_p=mat(T_,1,fill::zeros);
+      if(cumulate_y){
+        for(unsigned int i=0; i<T_-h;i++){
+          dependent_p.row(i)=sum(y.rows(i,i+h));
+        }
+      }else{
+        for(unsigned int k=0; k<T_-h;k++){
+          dependent_p.row(k)=y.row(k+h);
+        }
       }
-    }else{
-      for(unsigned int i=0; i<T_-h;i++){
-        dependent.row(i)=y.row(i+h);
+      arma::mat joint_trimmed_p=join_horiz(dependent_p,regressors); joint_trimmed_p=joint_trimmed_p.rows(lags,T_-h-1);
+      arma::mat dependent_trimmed_p=joint_trimmed_p.col(0);
+      arma::mat regressors_trimmed_p=joint_trimmed_p.cols(1, joint_trimmed.n_cols-1);
+      if(OLS){
+        d_p=OLS_HAC(regressors_trimmed_p, dependent_trimmed_p, H, true, true, 0, 0, alphas);
+      }else{
+        nodewise_manual nm_p;
+        nm_p.use_manual=true;
+        nm_p.manual_Thetahat=mThetahat;
+        nm_p.manual_Upsilonhat_inv=mUpsilonhat_inv;
+        nm_p.manual_nw_residuals=mnw_residuals(span(0,regressors_trimmed_p.n_rows-1), span(0,H.n_elem-1));
+        grids_output g_p=build_gridsXy(regressors_trimmed_p.n_rows, regressors_trimmed_p.n_cols, 50, regressors_trimmed_p, dependent_trimmed_p, H, true, true);
+        partial_desparsified_lasso_inference_output pdli_p=partial_desparsified_lasso_inference(regressors_trimmed_p, dependent_trimmed_p, H, true, true, init_partial, nw_partials,
+                                                                                                g_p.init_grid, g_p.nw_grids, init_selection_type, nw_selection_types,
+                                                                                                init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
+                                                                                                0, 0, alphas, R, Q, PIconstant, 0.05,
+                                                                                                nm_p);
+        d_p.Omegahat=pdli_p.Omegahat;
+        d_p.z_quantiles=pdli_p.z_quantiles;
+        d_p.intervals=pdli_p.intervals;
+        d_p.intervals_unscaled=pdli_p.intervals_unscaled;
+        d_p.betahat=pdli_p.betahat;
+        d_p.b_H=pdli_p.bhat_1;
+        d_p.b_H_unscaled=pdli_p.bhat_1_unscaled;
+        d_p.Thetahat=pdli_p.Thetahat;
       }
+      betahats.col(h)=d_p.betahat;
+      for(unsigned int j=0; j<states; j++){
+        intervals(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled).row(j);
+      }
+      p.increment();
     }
-    joint_trimmed=naomit(join_horiz(dependent,regressors));
-    dependent_trimmed=joint_trimmed.col(0);
-    regressors_trimmed=joint_trimmed.cols(1, joint_trimmed.n_cols-1);
-    if(OLS){
-      d=OLS_HAC(regressors_trimmed, dependent_trimmed, H, true, true, 0, 0, alphas);
-    }else{
-      trimmed_residuals=mnw_residuals(Range(0,regressors_trimmed.n_rows-1), Range(0,H.n_elem-1));
-      g=Rwrap_build_gridsXy(regressors_trimmed.n_rows, regressors_trimmed.n_cols, 50, regressors_trimmed, dependent_trimmed, H, true, true);
-      d=Rwrap_partial_desparsified_lasso_inference(regressors_trimmed, dependent_trimmed, H, true, true, init_partial, nw_partials,
-                                                   g["init_grid"], g["nw_grids"], init_selection_type, nw_selection_types,
-                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                   0, 0, alphas, R, Q, PIconstant, 0.05,
-                                                   mThetahat, mUpsilonhat_inv,trimmed_residuals
-      );
-    }
-    temp=d["inference"];
-    tempmat=as<arma::mat>(temp["intervals_unscaled"]);
-    //intervals.row(h)=tempmat.row(0);
-    for(unsigned int i=0; i<states; i++){
-      intervals_temp=as<arma::mat>(intervals(i));
-      intervals_temp.row(h)=tempmat.row(i);
-      intervals(i)=intervals_temp;
-    }
-    temp=d["init"];
-    betahats(h)=temp["betahat"];
-    p.increment();
   }
   return List::create(Named("intervals")=intervals,
                       Named("manual_Thetahat")=mThetahat,
-                      Named("betahats")=betahats);
+                      Named("betahats")=betahats,
+                      Named("regressors")=regressors,
+                      Named("regressors_trimmed")=regressors_trimmed);
 }
-
