@@ -2,7 +2,7 @@
 % Please edit documentation in R/R_functions.R
 \name{HDLP_state_dependent}
 \alias{HDLP_state_dependent}
-\title{High-Dimensional Local Projection}
+\title{State Dependent High-Dimensional Local Projection}
 \usage{
 HDLP_state_dependent(
   r = NULL,
@@ -63,7 +63,7 @@ Returns a list with the following elements: \cr
 \item{\code{betahats}}{list of matrices (column vectors), giving the initial lasso estimate at each horizon}
 }
 \description{
-Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
+Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein. This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
 }
 \examples{
 X<-matrix(rnorm(100*100), nrow=100)

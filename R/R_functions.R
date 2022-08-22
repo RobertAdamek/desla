@@ -220,7 +220,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
     }
     names(nw_nonzero_poss)=H
   }
-  return(list(bhat_scaled=PDLI$bhat_1,
+  out <- list(bhat_scaled=PDLI$bhat_1,
               bhat=PDLI$bhat_1_unscaled,
               intervals=PDLI$inference$intervals_unscaled,
               intervals_scaled=PDLI$inference$intervals,
@@ -240,15 +240,17 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
               init_nonzero=PDLI$init$nonzero,
               nw_nonzeros=PDLI$nw$nonzeros,
               init_nonzero_pos=init_nonzero_pos,
-              nw_nonzero_poss=nw_nonzero_poss))
+              nw_nonzero_poss=nw_nonzero_poss)
+  class(out) <- "desla"
+  return(out)
 }
 
 #' @importFrom Rdpack reprompt
 #' @title High-Dimensional Local Projection
 #' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.
-#' @param r (optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)
 #' @param x \code{T_}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details
 #' @param y \code{T_}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details
+#' @param r (optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)
 #' @param q (optional) vector or matrix with \code{T_} rows, containing the "fast" variables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)
 #' @param y_predetermined (optional) boolean, true if the response variable \code{y} is predetermined with respect to \code{x}, i.e. cannot react within the same period to the shock. If true, the impulse response at horizon 0 is 0 (false by default)
 #' @param cumulate_y (optional) boolean, true if the impulse response of \code{y} should be cumulated, i.e. using the cumulative sum of \code{y} as the dependent variable (false by default)
@@ -267,10 +269,11 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' X<-matrix(rnorm(100*100), nrow=100)
 #' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
 #' h<-HDLP(x=X[,4], y=y, q=X[,-4], hmax=5, lags=1)
+#' plot(h)
 #' @references
 #' \insertAllCited{}
 #' @export
-HDLP=function(r=NULL, x, y, q=NULL,
+HDLP=function(x, y, r=NULL, q=NULL,
                           y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
                           lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
                           progress_bar=TRUE){
@@ -305,14 +308,26 @@ HDLP=function(r=NULL, x, y, q=NULL,
     CInames[2*length(alphas)+2-i]=paste("upper ", alphas[i], sep="")
   }
   dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
-  return(list(intervals=LP$intervals,
+
+  varnames <- list(x = "X", y = "Y")
+  if (!is.null(colnames(x))) {
+    varnames$x = colnames(x)
+  }
+  if (!is.null(colnames(y))) {
+    varnames$y = colnames(y)
+  }
+
+  out <- list(intervals=LP$intervals,
               Thetahat=LP$manual_Thetahat,
-              betahats=LP$betahats))
+              betahats=LP$betahats,
+              varnames=varnames)
+  class(out) <- "hdlp"
+  return(out)
 }
 
 #' @importFrom Rdpack reprompt
-#' @title High-Dimensional Local Projection
-#' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
+#' @title State Dependent High-Dimensional Local Projection
+#' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein. This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
 #' @param state_dummy (optional) matrix with \code{T_} rows, containing dummy variables that define the states. If only a vector is given, a second state is defined as \code{1-state_dummy}. Otherwise a state is defined to match each column (NULL by default)
 #' @param OLS (optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)
 #' @param threads (optional) integer, how many threads should be used for parallel computing. Parallelization is not done when threads=0. (0 by default)
@@ -376,9 +391,59 @@ HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
   #if(!is.null(state_dummy)){
   #  names(LP$intervals)<-paste0("state ", 1:ncol(state_dummy))
   #}
-  return(list(intervals=LP$intervals,
+  out <- list(intervals=LP$intervals,
               Thetahat=LP$manual_Thetahat,
               betahats=LP$betahats,
               regressors=LP$regressors,
-              regressors_trimmed=LP$regressors_trimmed))
+              regressors_trimmed=LP$regressors_trimmed)
+  class(out) <- "hdlp_sd"
+  return(out)
+}
+
+#' Plot Impulse Responses obtained from HDLP.
+#' @param x Output of the \code{HDLP()} function.
+#' @param y Has no function, included for compatibility with \code{plot.default()}.
+#' @param response Name of the response variable (\code{y} in \code{HDLP()}).
+#' @param impulse Name of the shock variable (\code{x} in \code{HDLP()}).
+#' @param units Units of the response variable (y-axis label).
+#' @param title String containing title of the plot; can be used to overwrite default
+#' generated based on the names of the \code{response} and \code{impulse} variables.
+#' @param ... Other arguments forwarded to plot function (currently inactive).
+#' @return A \code{ggplot} object.
+#' @export
+#' @keywords internal
+plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, units = NULL,
+                      title = NULL, ...) {
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("Cannot plot as package ggplot2 not installed.")
+  }
+  ir <- data.frame(Horizon = as.numeric(rownames(x$intervals)), Estimate = x$intervals[, 2],
+                   Lower = x$intervals[, 1], Upper = x$intervals[, 3])
+  if (is.null(title)) {
+    if (is.null(response)) {
+      response <- x$varnames$y
+    }
+    if (is.null(impulse)) {
+      impulse <- x$varnames$x
+    }
+    title_txt <- ggplot2::ggtitle(paste0("Response of ", response, " to a shock in ",
+                                         impulse))
+  } else {
+    title_txt <- title
+  }
+  if (is.null(units)) {
+    units <- "Response"
+  }
+
+  g <- ggplot2::ggplot(data = ir, ggplot2::aes(x = Horizon)) +
+    ggplot2::geom_hline(yintercept = 0, color = "black", size =0.5)+
+    ggplot2::geom_line(ggplot2::aes(y = Estimate), color = "navyblue", size = 1)+
+    ggplot2::geom_ribbon(ggplot2::aes(ymin = Lower, ymax = Upper), fill = "navyblue",
+                         alpha = 0.5)+
+    ggplot2::xlab("Horizon") +
+    ggplot2::ylab(units) +
+    ggplot2::ggtitle(title_txt) +
+    ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
+                   panel.grid.minor = ggplot2::element_blank())
+  return(g)
 }
