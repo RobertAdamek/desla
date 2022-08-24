@@ -343,7 +343,7 @@ HDLP=function(x, y, r=NULL, q=NULL,
 #' @references
 #' \insertAllCited{}
 #' @export
-HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
+HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
               y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
               lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
               progress_bar=TRUE, OLS=FALSE, threads=0){
@@ -383,7 +383,8 @@ HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
   if(is.null(state_dummy)){
     dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
   }else{
-    dimnames(LP$intervals)<-list(horizon=0:hmax, CInames, paste0("state ", 1:ncol(state_dummy)))
+    dimnames(LP$intervals)<-list(horizon=0:hmax, CInames,
+                                 state = paste0("state ", 1:ncol(state_dummy)))
   }
   #for(i in 1:length(LP$intervals)){
   #  dimnames(LP$intervals[[i]])<-list(horizon=0:hmax, CInames)
@@ -391,12 +392,21 @@ HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
   #if(!is.null(state_dummy)){
   #  names(LP$intervals)<-paste0("state ", 1:ncol(state_dummy))
   #}
+  varnames <- list(x = "X", y = "Y")
+  if (!is.null(colnames(x))) {
+    varnames$x = colnames(x)
+  }
+  if (!is.null(colnames(y))) {
+    varnames$y = colnames(y)
+  }
+
   out <- list(intervals=LP$intervals,
               Thetahat=LP$manual_Thetahat,
               betahats=LP$betahats,
               regressors=LP$regressors,
-              regressors_trimmed=LP$regressors_trimmed)
-  class(out) <- "hdlp_sd"
+              regressors_trimmed=LP$regressors_trimmed,
+              varnames=varnames)
+  class(out) <- "hdlp"
   return(out)
 }
 
@@ -405,6 +415,8 @@ HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
 #' @param y Has no function, included for compatibility with \code{plot.default()}.
 #' @param response Name of the response variable (\code{y} in \code{HDLP()}).
 #' @param impulse Name of the shock variable (\code{x} in \code{HDLP()}).
+#' @param states Optional names of the states (when applicable). If not provided, names
+#' will be determined from \code{x}.
 #' @param units Units of the response variable (y-axis label).
 #' @param title String containing title of the plot; can be used to overwrite default
 #' generated based on the names of the \code{response} and \code{impulse} variables.
@@ -412,13 +424,42 @@ HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
 #' @return A \code{ggplot} object.
 #' @export
 #' @keywords internal
-plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, units = NULL,
-                      title = NULL, ...) {
+plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, states = NULL,
+                      units = NULL, title = NULL, ...) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Cannot plot as package ggplot2 not installed.")
   }
-  ir <- data.frame(Horizon = as.numeric(rownames(x$intervals)), Estimate = x$intervals[, 2],
-                   Lower = x$intervals[, 1], Upper = x$intervals[, 3])
+  n_alphas <- (dim(x$intervals)[2] - 1) / 2
+  if (length(dim(x$intervals)) > 2) {
+    intervals <- matrix(aperm(x$intervals, c(1, 3, 2)), ncol = 2 * n_alphas + 1)
+  } else {
+    intervals <- x$intervals
+  }
+  n_states <- nrow(intervals) / dim(x$intervals)[1]
+  colnames(intervals) <- colnames(x$intervals)
+  rownames(intervals) <- rep(rownames(x$intervals), n_states)
+  alphas <- sapply(1:n_alphas, function(i){as.numeric(substr(colnames(intervals)[i], 7,
+                                                             nchar(colnames(intervals)[i])))})
+  s_alphas <- sort(1 - alphas)
+  lower_bounds <- data.frame(t(apply(intervals[, 1:n_alphas], 1, sort,
+                                     decreasing = TRUE)))
+  colnames(lower_bounds) <- paste(100 * s_alphas, "% CI Lower Bound")
+  upper_bounds <- data.frame(t(apply(intervals[, 1:n_alphas + 1 + n_alphas], 1, sort)))
+  colnames(upper_bounds) <- paste(100 * s_alphas, "% CI Upper Bound")
+
+  if (n_states == 1) {
+    state = rep(NA, nrow(intervals))
+  } else {
+    if (is.null(states)) {
+      states <- dimnames(x$intervals)[[3]]
+    }
+    state = rep(states, each = dim(x$intervals)[1])
+  }
+
+  ir <- data.frame(Horizon = as.numeric(rownames(intervals)),
+                   Estimate = intervals[, n_alphas + 1],
+                   lower_bounds, upper_bounds, state = state)
+
   if (is.null(title)) {
     if (is.null(response)) {
       response <- x$varnames$y
@@ -426,8 +467,7 @@ plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, units = NULL
     if (is.null(impulse)) {
       impulse <- x$varnames$x
     }
-    title_txt <- ggplot2::ggtitle(paste0("Response of ", response, " to a shock in ",
-                                         impulse))
+    title_txt <- paste0("Response of ", response, " to a shock in ", impulse)
   } else {
     title_txt <- title
   }
@@ -436,14 +476,20 @@ plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, units = NULL
   }
 
   g <- ggplot2::ggplot(data = ir, ggplot2::aes(x = Horizon)) +
-    ggplot2::geom_hline(yintercept = 0, color = "black", size =0.5)+
-    ggplot2::geom_line(ggplot2::aes(y = Estimate), color = "navyblue", size = 1)+
-    ggplot2::geom_ribbon(ggplot2::aes(ymin = Lower, ymax = Upper), fill = "navyblue",
-                         alpha = 0.5)+
+    ggplot2::geom_hline(yintercept = 0, color = "black", size = 0.5) +
+    ggplot2::geom_line(ggplot2::aes(y = Estimate), color = "navyblue", size = 1) +
     ggplot2::xlab("Horizon") +
     ggplot2::ylab(units) +
     ggplot2::ggtitle(title_txt) +
     ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
                    panel.grid.minor = ggplot2::element_blank())
+  if (n_states > 1) {
+    g <- g + ggplot2::facet_wrap(ggplot2::vars(state))
+  }
+  for (i in 1:n_alphas) {
+    g <- g + ggplot2::geom_ribbon(ggplot2::aes_string(ymin = names(ir)[i + 2],
+                                                      ymax = names(ir)[i + 2 + n_alphas]),
+                                  fill = "navyblue", alpha = 1/(n_alphas + 1))
+  }
   return(g)
 }
