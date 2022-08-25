@@ -18,6 +18,9 @@ LinkingTo:
     RcppProgress
 Imports: 
     Rcpp,
-    Rdpack
+    Rdpack,
+    stats
+Suggests:
+    ggplot2
 RdMacros: 
     Rdpack

@@ -437,10 +437,15 @@ plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, states = NUL
   alphas <- sapply(1:n_alphas, function(i){as.numeric(substr(colnames(intervals)[i], 7,
                                                              nchar(colnames(intervals)[i])))})
   s_alphas <- sort(1 - alphas)
-  lower_bounds <- data.frame(t(apply(intervals[, 1:n_alphas], 1, sort,
-                                     decreasing = TRUE)))
+  if (n_alphas > 1) {
+    lower_bounds <- data.frame(t(apply(intervals[, 1:n_alphas], 1, sort,
+                                       decreasing = TRUE)))
+    upper_bounds <- data.frame(t(apply(intervals[, 1:n_alphas + 1 + n_alphas], 1, sort)))
+  } else {
+    lower_bounds <- data.frame(intervals[, 1])
+    upper_bounds <- data.frame(intervals[, 3])
+  }
   colnames(lower_bounds) <- paste(100 * s_alphas, "% CI Lower Bound")
-  upper_bounds <- data.frame(t(apply(intervals[, 1:n_alphas + 1 + n_alphas], 1, sort)))
   colnames(upper_bounds) <- paste(100 * s_alphas, "% CI Upper Bound")
 
   if (n_states == 1) {
@@ -471,6 +476,8 @@ plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, states = NUL
     units <- "Response"
   }
 
+  Horizon <- NULL
+  Estimate <- NULL
   g <- ggplot2::ggplot(data = ir, ggplot2::aes(x = Horizon)) +
     ggplot2::geom_hline(yintercept = 0, color = "black", size = 0.5) +
     ggplot2::geom_line(ggplot2::aes(y = Estimate), color = "navyblue", size = 1) +
@@ -558,7 +565,7 @@ create_state_dummies_from_datamatrix <- function(x) {
     # If needed, transform variable i to a factor
     factor_i <- factor(x[, i], levels = unique(x[, i]))
     # Create the matrix with dummies for this vector
-    assign(var_i_name, model.matrix(~ factor_i - 1, data.frame(factor_i)))
+    assign(var_i_name, stats::model.matrix(~ factor_i - 1, data.frame(factor_i)))
     # Store the states this variable has
     states[[var_i_name]] <- levels(factor_i)
     nr_states[[var_i_name]] <- 1:length(levels(x[, i]))
@@ -603,7 +610,7 @@ create_state_dummies_from_vector <- function(x, varname = "StateVar") {
   }
   factor_i <- factor(x, levels = unique(x))
   # Create the matrix with dummies for this vector
-  d <- model.matrix(~ factor_i - 1, data.frame(factor_i))
+  d <- stats::model.matrix(~ factor_i - 1, data.frame(factor_i))
   colnames(d) <- paste0(varname, ":", levels(factor_i))
   return(d)
 }
