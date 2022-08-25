@@ -328,10 +328,11 @@ HDLP=function(x, y, r=NULL, q=NULL,
 #' @importFrom Rdpack reprompt
 #' @title State Dependent High-Dimensional Local Projection
 #' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein. This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
-#' @param state_dummy (optional) matrix with \code{T_} rows, containing dummy variables that define the states. If only a vector is given, a second state is defined as \code{1-state_dummy}. Otherwise a state is defined to match each column (NULL by default)
+#' @param state_dummy (optional) matrix or data frame with \code{T_} rows, containing the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state; see 'Details'.
 #' @param OLS (optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)
 #' @param threads (optional) integer, how many threads should be used for parallel computing. Parallelization is not done when threads=0. (0 by default)
 #' @inheritParams HDLP
+#' @details The input to \code{state_dummy} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
 #' @return Returns a list with the following elements: \cr
 #' \item{\code{intervals}}{list of matrices containing the point estimates and confidence intervals for the impulse response functions in each state, for significance levels given in \code{alphas}}
 #' \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
@@ -363,13 +364,8 @@ HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
     alphas<-as.matrix(alphas, ncol=1)
   }
   if(!is.null(state_dummy)){
-    if(!is.matrix(state_dummy)){
-      state_dummy<-as.matrix(state_dummy, nrow=nrow(x))
+      state_dummy <- create_state_dummies(state_dummy)
     }
-    if(ncol(state_dummy)==1){
-      state_dummy<-cbind(state_dummy, 1-state_dummy)
-    }
-  }
   LP=.Rcpp_local_projection_state_dependent(r, x, y, q, state_dummy,
                             y_predetermined,cumulate_y, hmax,
                             lags,alphas, init_partial, selection, PIconstant,
@@ -384,7 +380,7 @@ HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
     dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
   }else{
     dimnames(LP$intervals)<-list(horizon=0:hmax, CInames,
-                                 state = paste0("state ", 1:ncol(state_dummy)))
+                                 state = colnames(state_dummy))
   }
   #for(i in 1:length(LP$intervals)){
   #  dimnames(LP$intervals[[i]])<-list(horizon=0:hmax, CInames)
@@ -492,4 +488,122 @@ plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, states = NUL
                                   fill = "navyblue", alpha = 1/(n_alphas + 1))
   }
   return(g)
+}
+
+#' Create State Dummies
+#' @description Creates state dummies for use in \code{\link{HDLP_state_dependent}}.
+#' @param x Contains the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state.
+#' @details The function first checks if \code{x} is already in the correct outpuut format by evaluating if each row sums up to one. If this is not the case, each column is treated as a categorical variable for which its unique entries define the states it can take. If \code{x} contains more than one column, interactions between the variables are created. Example, inputting two variables that can take two states each, results in a total of four possible states, and hence the output matrix contains four columns.
+#' @return A matrix where each column is a binary indicator for one state.
+#' @export
+create_state_dummies <- function(x) {
+  # Check if x has more than one column
+  if (NCOL(x) > 1 ) {
+    # Check if x has numerical or logical entries
+    if (is.numeric(x) | is.logical(x)){
+      # Check if the vectors already indicate the different states, in which case the rows
+      # should sum to one.
+      if (rowSums(x) == rep(1, NROW(x))) {
+        # No further transformations need to be done
+        d <- as.matrix(x)
+        if (!is.null(colnames(x))) {
+          names_d <- colnames(x)
+        } else {
+          names_d <- paste0("State ", 1:NCOL(x))
+        }
+      } else {
+        # In this case each column is treated as a categorical variable that indicates the
+        # states for that particular variable.
+        if (is.null(colnames(x))) {
+          colnames(x) <- paste0("Var", 1:NCOL(x))
+        }
+        d <- create_state_dummies_from_datamatrix(x)
+      }
+    } else {
+      # In this case each column is treated as a categorical variable that indicates the
+      # states for that particular variable.
+      if (is.null(colnames(x))) {
+        colnames(x) <- paste0("Var", 1:NCOL(x))
+      }
+      d <- create_state_dummies_from_datamatrix(x)
+    }
+  } else if (NCOL(x) == 1) {
+    # x is treated as a categorical variable that indicates the states by its unique entries.
+    if (is.null(colnames(x))) {
+      varname <- deparse(substitute(x))
+    } else {
+      varname <- colnames(x)
+    }
+    d <- create_state_dummies_from_vector(x, varname = varname)
+  }
+  return(d)
+}
+
+#' Create State Dummies from Matrix
+#' @description Creates state dummies from matrix-like objects
+#' @param x Matrix or data frame where each column represents a state variable.
+#' @return A matrix where each column is a binary indicator for one state.
+#' @export
+#' @keywords internal
+create_state_dummies_from_datamatrix <- function(x) {
+  # In this case each column is treated as a categorical variable that indicates the
+  # states for that particular variable. We then need to create interaction terms.
+  # We will now use a formula to create the corresponding matrix with dummies
+  nr_states <- list()
+  states <- list()
+  varnames <- colnames(x)
+  for (i in 1:NCOL(x)) {
+    # Create variable name
+    var_i_name <- paste0("Var", i)
+    # If needed, transform variable i to a factor
+    factor_i <- factor(x[, i], levels = unique(x[, i]))
+    # Create the matrix with dummies for this vector
+    assign(var_i_name, model.matrix(~ factor_i - 1, data.frame(factor_i)))
+    # Store the states this variable has
+    states[[var_i_name]] <- levels(factor_i)
+    nr_states[[var_i_name]] <- 1:length(levels(x[, i]))
+  }
+  # We create a function multiplying columns of each variable to create all interactions
+  function_txt <- paste(paste0("Var", 1:NCOL(x), "[, all_states[x, ", 1:NCOL(x), "]]"),
+                        collapse = " * ", sep = "")
+  # Create a matrix that gives all possible combinations of states
+  all_states <- expand.grid(nr_states)
+  nr_all_states <- nrow(all_states)
+  # Look over all the possible combinations of the states with the function created above
+  d <- sapply(1:nr_all_states,
+              eval(parse(text = paste0("function(x){", function_txt, "}"))))
+  # Create column names
+  names_d <- rep("", nr_all_states)
+  for (i in 1:nr_all_states) {
+    names_d[i] <- paste0(names_d[i], paste0(varnames[1], ":", states[[1]][all_states[i, 1]]))
+    for (j in 2:NCOL(x)) {
+      names_d[i] <- paste0(names_d[i],"-", paste0(varnames[j], ":", states[[j]][all_states[i, j]]))
+    }
+  }
+  colnames(d) <- names_d
+  return(d)
+}
+
+#' Create State Dummies from Vector
+#' @description Creates state dummies from vectors
+#' @param x Vector representing the state variable.
+#' @param varname Name of the state variable.
+#' @return A matrix where each column is a binary indicator for one state.
+#' @export
+#' @keywords internal
+create_state_dummies_from_vector <- function(x, varname = "StateVar") {
+  # x is treated as a categorical variable that indicates the states by its unique entries.
+  # We will create a data frame with a factor and use a formula to create the
+  # corresponding matrix with dummies
+  if (is.logical(x)) {
+    x <- as.character(x)
+  }
+  if (is.data.frame(x)) {
+    x <- x[, 1]
+  }
+  factor_i <- factor(x, levels = unique(x))
+  # Create the matrix with dummies for this vector
+  d <- model.matrix(~ factor_i - 1, data.frame(factor_i))
+  colnames(d) <- paste0(varname, ":", levels(factor_i))
+  return(d)
 }
