@@ -9,6 +9,7 @@
   y = NULL,
   response = NULL,
   impulse = NULL,
+  states = NULL,
   units = NULL,
   title = NULL,
   ...
@@ -22,6 +23,9 @@
 \item{response}{Name of the response variable (\code{y} in \code{HDLP()}).}
 
 \item{impulse}{Name of the shock variable (\code{x} in \code{HDLP()}).}
+
+\item{states}{Optional names of the states (when applicable). If not provided, names
+will be determined from \code{x}.}
 
 \item{units}{Units of the response variable (y-axis label).}
 

@@ -5,9 +5,9 @@
 \title{State Dependent High-Dimensional Local Projection}
 \usage{
 HDLP_state_dependent(
-  r = NULL,
   x,
   y,
+  r = NULL,
   q = NULL,
   state_dummy = NULL,
   y_predetermined = FALSE,
@@ -24,15 +24,15 @@ HDLP_state_dependent(
 )
 }
 \arguments{
-\item{r}{(optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)}
-
 \item{x}{\code{T_}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details}
 
 \item{y}{\code{T_}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details}
 
+\item{r}{(optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)}
+
 \item{q}{(optional) vector or matrix with \code{T_} rows, containing the "fast" variables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)}
 
-\item{state_dummy}{(optional) matrix with \code{T_} rows, containing dummy variables that define the states. If only a vector is given, a second state is defined as \code{1-state_dummy}. Otherwise a state is defined to match each column (NULL by default)}
+\item{state_dummy}{(optional) matrix or data frame with \code{T_} rows, containing the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state; see 'Details'.}
 
 \item{y_predetermined}{(optional) boolean, true if the response variable \code{y} is predetermined with respect to \code{x}, i.e. cannot react within the same period to the shock. If true, the impulse response at horizon 0 is 0 (false by default)}
 
@@ -64,6 +64,9 @@ Returns a list with the following elements: \cr
 }
 \description{
 Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein. This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
+}
+\details{
+The input to \code{state_dummy} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
 }
 \examples{
 X<-matrix(rnorm(100*100), nrow=100)
