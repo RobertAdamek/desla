@@ -330,7 +330,8 @@ HDLP=function(x, y, r=NULL, q=NULL,
 #' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein. This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
 #' @param state_dummy (optional) matrix or data frame with \code{T_} rows, containing the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state; see 'Details'.
 #' @param OLS (optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)
-#' @param threads (optional) integer, how many threads should be used for parallel computing. Parallelization is not done when threads=0. (0 by default)
+#' @param parallel boolean, whether parallel computing should be used. Default is FALSE.
+#' @param threads (optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE}. Default is to use all but one.
 #' @inheritParams HDLP
 #' @details The input to \code{state_dummy} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
 #' @return Returns a list with the following elements: \cr
@@ -347,7 +348,7 @@ HDLP=function(x, y, r=NULL, q=NULL,
 HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
               y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
               lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
-              progress_bar=TRUE, OLS=FALSE, threads=0){
+              progress_bar=TRUE, OLS=FALSE, parallel=FALSE, threads=NULL){
   if(!is.matrix(x)){
     x<-as.matrix(x, ncol=1)
   }
@@ -365,7 +366,14 @@ HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
   }
   if(!is.null(state_dummy)){
       state_dummy <- create_state_dummies(state_dummy)
+  }
+  if(parallel){
+    if(is.null(threads)){
+      threads <- parallelly::availableCores(omit = 2)
     }
+  }else{
+    threads <- 0
+  }
   LP=.Rcpp_local_projection_state_dependent(r, x, y, q, state_dummy,
                             y_predetermined,cumulate_y, hmax,
                             lags,alphas, init_partial, selection, PIconstant,

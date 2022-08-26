@@ -19,7 +19,8 @@ LinkingTo:
 Imports: 
     Rcpp,
     Rdpack,
-    stats
+    stats,
+    parallelly
 Suggests:
     ggplot2
 RdMacros: 
