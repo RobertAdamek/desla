@@ -331,7 +331,7 @@ HDLP=function(x, y, r=NULL, q=NULL,
 #' @param state_dummy (optional) matrix or data frame with \code{T_} rows, containing the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state; see 'Details'.
 #' @param OLS (optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)
 #' @param parallel boolean, whether parallel computing should be used. Default is FALSE.
-#' @param threads (optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE}. Default is to use all but one.
+#' @param threads (optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE}. Default is to use all but two.
 #' @inheritParams HDLP
 #' @details The input to \code{state_dummy} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
 #' @return Returns a list with the following elements: \cr
@@ -427,7 +427,6 @@ HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
 #' @param ... Other arguments forwarded to plot function (currently inactive).
 #' @return A \code{ggplot} object.
 #' @export
-#' @keywords internal
 plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, states = NULL,
                       units = NULL, title = NULL, ...) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
