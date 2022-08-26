@@ -2,12 +2,12 @@
 % Please edit documentation in R/R_functions.R
 \name{HDLP_state_dependent}
 \alias{HDLP_state_dependent}
-\title{High-Dimensional Local Projection}
+\title{State Dependent High-Dimensional Local Projection}
 \usage{
 HDLP_state_dependent(
-  r = NULL,
   x,
   y,
+  r = NULL,
   q = NULL,
   state_dummy = NULL,
   y_predetermined = FALSE,
@@ -20,19 +20,20 @@ HDLP_state_dependent(
   PIconstant = 0.8,
   progress_bar = TRUE,
   OLS = FALSE,
-  threads = 0
+  parallel = FALSE,
+  threads = NULL
 )
 }
 \arguments{
-\item{r}{(optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)}
-
 \item{x}{\code{T_}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details}
 
 \item{y}{\code{T_}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details}
 
+\item{r}{(optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)}
+
 \item{q}{(optional) vector or matrix with \code{T_} rows, containing the "fast" variables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)}
 
-\item{state_dummy}{(optional) matrix with \code{T_} rows, containing dummy variables that define the states. If only a vector is given, a second state is defined as \code{1-state_dummy}. Otherwise a state is defined to match each column (NULL by default)}
+\item{state_dummy}{(optional) matrix or data frame with \code{T_} rows, containing the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state; see 'Details'.}
 
 \item{y_predetermined}{(optional) boolean, true if the response variable \code{y} is predetermined with respect to \code{x}, i.e. cannot react within the same period to the shock. If true, the impulse response at horizon 0 is 0 (false by default)}
 
@@ -54,7 +55,9 @@ HDLP_state_dependent(
 
 \item{OLS}{(optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)}
 
-\item{threads}{(optional) integer, how many threads should be used for parallel computing. Parallelization is not done when threads=0. (0 by default)}
+\item{parallel}{boolean, whether parallel computing should be used. Default is FALSE.}
+
+\item{threads}{(optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE}. Default is to use all but two.}
 }
 \value{
 Returns a list with the following elements: \cr
@@ -63,12 +66,16 @@ Returns a list with the following elements: \cr
 \item{\code{betahats}}{list of matrices (column vectors), giving the initial lasso estimate at each horizon}
 }
 \description{
-Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
+Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein. This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
+}
+\details{
+The input to \code{state_dummy} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
 }
 \examples{
 X<-matrix(rnorm(100*100), nrow=100)
 y<-X[,1:4] \%*\% c(1, 2, 3, 4) + rnorm(100)
-h<-HDLP(x=X[,4], y=y, q=X[,-4], hmax=5, lags=1)
+s<-matrix(c(rep(1,50),rep(0,100),rep(1,50)), ncol=2, dimnames = list(NULL, c("A","B")))
+h<-HDLP_state_dependent(x=X[,4], y=y, q=X[,-4], state_dummy=s, hmax=5, lags=1)
 }
 \references{
 \insertAllCited{}

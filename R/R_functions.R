@@ -220,7 +220,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
     }
     names(nw_nonzero_poss)=H
   }
-  return(list(bhat_scaled=PDLI$bhat_1,
+  out <- list(bhat_scaled=PDLI$bhat_1,
               bhat=PDLI$bhat_1_unscaled,
               intervals=PDLI$inference$intervals_unscaled,
               intervals_scaled=PDLI$inference$intervals,
@@ -240,15 +240,17 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
               init_nonzero=PDLI$init$nonzero,
               nw_nonzeros=PDLI$nw$nonzeros,
               init_nonzero_pos=init_nonzero_pos,
-              nw_nonzero_poss=nw_nonzero_poss))
+              nw_nonzero_poss=nw_nonzero_poss)
+  class(out) <- "desla"
+  return(out)
 }
 
 #' @importFrom Rdpack reprompt
 #' @title High-Dimensional Local Projection
 #' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.
-#' @param r (optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)
 #' @param x \code{T_}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details
 #' @param y \code{T_}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details
+#' @param r (optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)
 #' @param q (optional) vector or matrix with \code{T_} rows, containing the "fast" variables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)
 #' @param y_predetermined (optional) boolean, true if the response variable \code{y} is predetermined with respect to \code{x}, i.e. cannot react within the same period to the shock. If true, the impulse response at horizon 0 is 0 (false by default)
 #' @param cumulate_y (optional) boolean, true if the impulse response of \code{y} should be cumulated, i.e. using the cumulative sum of \code{y} as the dependent variable (false by default)
@@ -267,10 +269,11 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' X<-matrix(rnorm(100*100), nrow=100)
 #' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
 #' h<-HDLP(x=X[,4], y=y, q=X[,-4], hmax=5, lags=1)
+#' plot(h)
 #' @references
 #' \insertAllCited{}
 #' @export
-HDLP=function(r=NULL, x, y, q=NULL,
+HDLP=function(x, y, r=NULL, q=NULL,
                           y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
                           lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
                           progress_bar=TRUE){
@@ -305,18 +308,32 @@ HDLP=function(r=NULL, x, y, q=NULL,
     CInames[2*length(alphas)+2-i]=paste("upper ", alphas[i], sep="")
   }
   dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
-  return(list(intervals=LP$intervals,
+
+  varnames <- list(x = "X", y = "Y")
+  if (!is.null(colnames(x))) {
+    varnames$x = colnames(x)
+  }
+  if (!is.null(colnames(y))) {
+    varnames$y = colnames(y)
+  }
+
+  out <- list(intervals=LP$intervals,
               Thetahat=LP$manual_Thetahat,
-              betahats=LP$betahats))
+              betahats=LP$betahats,
+              varnames=varnames)
+  class(out) <- "hdlp"
+  return(out)
 }
 
 #' @importFrom Rdpack reprompt
-#' @title High-Dimensional Local Projection
-#' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
-#' @param state_dummy (optional) matrix with \code{T_} rows, containing dummy variables that define the states. If only a vector is given, a second state is defined as \code{1-state_dummy}. Otherwise a state is defined to match each column (NULL by default)
+#' @title State Dependent High-Dimensional Local Projection
+#' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein. This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
+#' @param state_dummy (optional) matrix or data frame with \code{T_} rows, containing the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state; see 'Details'.
 #' @param OLS (optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)
-#' @param threads (optional) integer, how many threads should be used for parallel computing. Parallelization is not done when threads=0. (0 by default)
+#' @param parallel boolean, whether parallel computing should be used. Default is FALSE.
+#' @param threads (optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE}. Default is to use all but two.
 #' @inheritParams HDLP
+#' @details The input to \code{state_dummy} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
 #' @return Returns a list with the following elements: \cr
 #' \item{\code{intervals}}{list of matrices containing the point estimates and confidence intervals for the impulse response functions in each state, for significance levels given in \code{alphas}}
 #' \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
@@ -324,14 +341,15 @@ HDLP=function(r=NULL, x, y, q=NULL,
 #' @examples
 #' X<-matrix(rnorm(100*100), nrow=100)
 #' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
-#' h<-HDLP(x=X[,4], y=y, q=X[,-4], hmax=5, lags=1)
+#' s<-matrix(c(rep(1,50),rep(0,100),rep(1,50)), ncol=2, dimnames = list(NULL, c("A","B")))
+#' h<-HDLP_state_dependent(x=X[,4], y=y, q=X[,-4], state_dummy=s, hmax=5, lags=1)
 #' @references
 #' \insertAllCited{}
 #' @export
-HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
+HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
               y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
               lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
-              progress_bar=TRUE, OLS=FALSE, threads=0){
+              progress_bar=TRUE, OLS=FALSE, parallel=FALSE, threads=NULL){
   if(!is.matrix(x)){
     x<-as.matrix(x, ncol=1)
   }
@@ -348,12 +366,14 @@ HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
     alphas<-as.matrix(alphas, ncol=1)
   }
   if(!is.null(state_dummy)){
-    if(!is.matrix(state_dummy)){
-      state_dummy<-as.matrix(state_dummy, nrow=nrow(x))
+      state_dummy <- create_state_dummies(state_dummy)
+  }
+  if(parallel){
+    if(is.null(threads)){
+      threads <- parallelly::availableCores(omit = 2)
     }
-    if(ncol(state_dummy)==1){
-      state_dummy<-cbind(state_dummy, 1-state_dummy)
-    }
+  }else{
+    threads <- 0
   }
   LP=.Rcpp_local_projection_state_dependent(r, x, y, q, state_dummy,
                             y_predetermined,cumulate_y, hmax,
@@ -368,7 +388,8 @@ HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
   if(is.null(state_dummy)){
     dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
   }else{
-    dimnames(LP$intervals)<-list(horizon=0:hmax, CInames, paste0("state ", 1:ncol(state_dummy)))
+    dimnames(LP$intervals)<-list(horizon=0:hmax, CInames,
+                                 state = colnames(state_dummy))
   }
   #for(i in 1:length(LP$intervals)){
   #  dimnames(LP$intervals[[i]])<-list(horizon=0:hmax, CInames)
@@ -376,13 +397,228 @@ HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
   #if(!is.null(state_dummy)){
   #  names(LP$intervals)<-paste0("state ", 1:ncol(state_dummy))
   #}
-  return(list(intervals=LP$intervals,
+  varnames <- list(x = "X", y = "Y")
+  if (!is.null(colnames(x))) {
+    varnames$x = colnames(x)
+  }
+  if (!is.null(colnames(y))) {
+    varnames$y = colnames(y)
+  }
+
+  out <- list(intervals=LP$intervals,
               Thetahat=LP$manual_Thetahat,
               betahats=LP$betahats,
               regressors=LP$regressors,
               regressors_trimmed=LP$regressors_trimmed,
-              init_residuals=LP$init_residuals,
-              nw_residuals=LP$nw_residuals,
-              dependents=LP$dependents
-              ))
+              varnames=varnames)
+  class(out) <- "hdlp"
+  return(out)
+}
+
+#' Plot Impulse Responses obtained from HDLP.
+#' @param x Output of the \code{HDLP()} function.
+#' @param y Has no function, included for compatibility with \code{plot.default()}.
+#' @param response Name of the response variable (\code{y} in \code{HDLP()}).
+#' @param impulse Name of the shock variable (\code{x} in \code{HDLP()}).
+#' @param states Optional names of the states (when applicable). If not provided, names
+#' will be determined from \code{x}.
+#' @param units Units of the response variable (y-axis label).
+#' @param title String containing title of the plot; can be used to overwrite default
+#' generated based on the names of the \code{response} and \code{impulse} variables.
+#' @param ... Other arguments forwarded to plot function (currently inactive).
+#' @return A \code{ggplot} object.
+#' @export
+plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, states = NULL,
+                      units = NULL, title = NULL, ...) {
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("Cannot plot as package ggplot2 not installed.")
+  }
+  n_alphas <- (dim(x$intervals)[2] - 1) / 2
+  if (length(dim(x$intervals)) > 2) {
+    intervals <- matrix(aperm(x$intervals, c(1, 3, 2)), ncol = 2 * n_alphas + 1)
+  } else {
+    intervals <- x$intervals
+  }
+  n_states <- nrow(intervals) / dim(x$intervals)[1]
+  colnames(intervals) <- colnames(x$intervals)
+  rownames(intervals) <- rep(rownames(x$intervals), n_states)
+  alphas <- sapply(1:n_alphas, function(i){as.numeric(substr(colnames(intervals)[i], 7,
+                                                             nchar(colnames(intervals)[i])))})
+  s_alphas <- sort(1 - alphas)
+  if (n_alphas > 1) {
+    lower_bounds <- data.frame(t(apply(intervals[, 1:n_alphas], 1, sort,
+                                       decreasing = TRUE)))
+    upper_bounds <- data.frame(t(apply(intervals[, 1:n_alphas + 1 + n_alphas], 1, sort)))
+  } else {
+    lower_bounds <- data.frame(intervals[, 1])
+    upper_bounds <- data.frame(intervals[, 3])
+  }
+  colnames(lower_bounds) <- paste(100 * s_alphas, "% CI Lower Bound")
+  colnames(upper_bounds) <- paste(100 * s_alphas, "% CI Upper Bound")
+
+  if (n_states == 1) {
+    state = rep(NA, nrow(intervals))
+  } else {
+    if (is.null(states)) {
+      states <- dimnames(x$intervals)[[3]]
+    }
+    state = rep(states, each = dim(x$intervals)[1])
+  }
+
+  ir <- data.frame(Horizon = as.numeric(rownames(intervals)),
+                   Estimate = intervals[, n_alphas + 1],
+                   lower_bounds, upper_bounds, state = state)
+
+  if (is.null(title)) {
+    if (is.null(response)) {
+      response <- x$varnames$y
+    }
+    if (is.null(impulse)) {
+      impulse <- x$varnames$x
+    }
+    title_txt <- paste0("Response of ", response, " to a shock in ", impulse)
+  } else {
+    title_txt <- title
+  }
+  if (is.null(units)) {
+    units <- "Response"
+  }
+
+  Horizon <- NULL
+  Estimate <- NULL
+  g <- ggplot2::ggplot(data = ir, ggplot2::aes(x = Horizon)) +
+    ggplot2::geom_hline(yintercept = 0, color = "black", size = 0.5) +
+    ggplot2::geom_line(ggplot2::aes(y = Estimate), color = "navyblue", size = 1) +
+    ggplot2::xlab("Horizon") +
+    ggplot2::ylab(units) +
+    ggplot2::ggtitle(title_txt) +
+    ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
+                   panel.grid.minor = ggplot2::element_blank())
+  if (n_states > 1) {
+    g <- g + ggplot2::facet_wrap(ggplot2::vars(state))
+  }
+  for (i in 1:n_alphas) {
+    g <- g + ggplot2::geom_ribbon(ggplot2::aes_string(ymin = names(ir)[i + 2],
+                                                      ymax = names(ir)[i + 2 + n_alphas]),
+                                  fill = "navyblue", alpha = 1/(n_alphas + 1))
+  }
+  return(g)
+}
+
+#' Create State Dummies
+#' @description Creates state dummies for use in \code{\link{HDLP_state_dependent}}.
+#' @param x Contains the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state.
+#' @details The function first checks if \code{x} is already in the correct output format by evaluating if each row sums up to one. If this is not the case, each column is treated as a categorical variable for which its unique entries define the states it can take. If \code{x} contains more than one column, interactions between the variables are created. Example, inputting two variables that can take two states each, results in a total of four possible states, and hence the output matrix contains four columns.
+#' @return A matrix where each column is a binary indicator for one state.
+#' @export
+create_state_dummies <- function(x) {
+  # Check if x has more than one column
+  if (NCOL(x) > 1 ) {
+    # Check if x has numerical or logical entries
+    if (is.numeric(x) | is.logical(x)){
+      # Check if the vectors already indicate the different states, in which case the rows
+      # should sum to one.
+      if (all(rowSums(x) == rep(1, NROW(x)))) {
+        # No further transformations need to be done
+        d <- as.matrix(x)
+        if (!is.null(colnames(x))) {
+          names_d <- colnames(x)
+        } else {
+          names_d <- paste0("State ", 1:NCOL(x))
+        }
+      } else {
+        # In this case each column is treated as a categorical variable that indicates the
+        # states for that particular variable.
+        if (is.null(colnames(x))) {
+          colnames(x) <- paste0("Var", 1:NCOL(x))
+        }
+        d <- create_state_dummies_from_datamatrix(x)
+      }
+    } else {
+      # In this case each column is treated as a categorical variable that indicates the
+      # states for that particular variable.
+      if (is.null(colnames(x))) {
+        colnames(x) <- paste0("Var", 1:NCOL(x))
+      }
+      d <- create_state_dummies_from_datamatrix(x)
+    }
+  } else if (NCOL(x) == 1) {
+    # x is treated as a categorical variable that indicates the states by its unique entries.
+    if (is.null(colnames(x))) {
+      varname <- deparse(substitute(x))
+    } else {
+      varname <- colnames(x)
+    }
+    d <- create_state_dummies_from_vector(x, varname = varname)
+  }
+  return(d)
+}
+
+#' Create State Dummies from Matrix
+#' @description Creates state dummies from matrix-like objects
+#' @param x Matrix or data frame where each column represents a state variable.
+#' @return A matrix where each column is a binary indicator for one state.
+#' @export
+#' @keywords internal
+create_state_dummies_from_datamatrix <- function(x) {
+  # In this case each column is treated as a categorical variable that indicates the
+  # states for that particular variable. We then need to create interaction terms.
+  # We will now use a formula to create the corresponding matrix with dummies
+  nr_states <- list()
+  states <- list()
+  varnames <- colnames(x)
+  for (i in 1:NCOL(x)) {
+    # Create variable name
+    var_i_name <- paste0("Var", i)
+    # If needed, transform variable i to a factor
+    factor_i <- factor(x[, i], levels = unique(x[, i]))
+    # Create the matrix with dummies for this vector
+    assign(var_i_name, stats::model.matrix(~ factor_i - 1, data.frame(factor_i)))
+    # Store the states this variable has
+    states[[var_i_name]] <- levels(factor_i)
+    nr_states[[var_i_name]] <- 1:length(levels(x[, i]))
+  }
+  # We create a function multiplying columns of each variable to create all interactions
+  function_txt <- paste(paste0("Var", 1:NCOL(x), "[, all_states[x, ", 1:NCOL(x), "]]"),
+                        collapse = " * ", sep = "")
+  # Create a matrix that gives all possible combinations of states
+  all_states <- expand.grid(nr_states)
+  nr_all_states <- nrow(all_states)
+  # Look over all the possible combinations of the states with the function created above
+  d <- sapply(1:nr_all_states,
+              eval(parse(text = paste0("function(x){", function_txt, "}"))))
+  # Create column names
+  names_d <- rep("", nr_all_states)
+  for (i in 1:nr_all_states) {
+    names_d[i] <- paste0(names_d[i], paste0(varnames[1], ":", states[[1]][all_states[i, 1]]))
+    for (j in 2:NCOL(x)) {
+      names_d[i] <- paste0(names_d[i],"-", paste0(varnames[j], ":", states[[j]][all_states[i, j]]))
+    }
+  }
+  colnames(d) <- names_d
+  return(d)
+}
+
+#' Create State Dummies from Vector
+#' @description Creates state dummies from vectors
+#' @param x Vector representing the state variable.
+#' @param varname Name of the state variable.
+#' @return A matrix where each column is a binary indicator for one state.
+#' @export
+#' @keywords internal
+create_state_dummies_from_vector <- function(x, varname = "StateVar") {
+  # x is treated as a categorical variable that indicates the states by its unique entries.
+  # We will create a data frame with a factor and use a formula to create the
+  # corresponding matrix with dummies
+  if (is.logical(x)) {
+    x <- as.character(x)
+  }
+  if (is.data.frame(x)) {
+    x <- x[, 1]
+  }
+  factor_i <- factor(x, levels = unique(x))
+  # Create the matrix with dummies for this vector
+  d <- stats::model.matrix(~ factor_i - 1, data.frame(factor_i))
+  colnames(d) <- paste0(varname, ":", levels(factor_i))
+  return(d)
 }

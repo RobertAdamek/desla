@@ -5,9 +5,9 @@
 \title{High-Dimensional Local Projection}
 \usage{
 HDLP(
-  r = NULL,
   x,
   y,
+  r = NULL,
   q = NULL,
   y_predetermined = FALSE,
   cumulate_y = FALSE,
@@ -21,11 +21,11 @@ HDLP(
 )
 }
 \arguments{
-\item{r}{(optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)}
-
 \item{x}{\code{T_}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details}
 
 \item{y}{\code{T_}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details}
+
+\item{r}{(optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)}
 
 \item{q}{(optional) vector or matrix with \code{T_} rows, containing the "fast" variables, ones which may react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details (NULL by default)}
 
@@ -60,6 +60,7 @@ Calculates impulse responses with local projections, using the desla function to
 X<-matrix(rnorm(100*100), nrow=100)
 y<-X[,1:4] \%*\% c(1, 2, 3, 4) + rnorm(100)
 h<-HDLP(x=X[,4], y=y, q=X[,-4], hmax=5, lags=1)
+plot(h)
 }
 \references{
 \insertAllCited{}
