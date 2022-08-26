@@ -1478,7 +1478,6 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
 #endif
 # pragma omp parallel for
     for(unsigned int h=1; h<=hmax;h++){
-      if (!Progress::check_abort()){
       reg_output d_p;
       arma::mat dependent_p;
       dependent_p=mat(T_,1,fill::zeros);
@@ -1522,7 +1521,6 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
         intervals(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled).row(j);
       }
       p.increment();
-      }
     }
   }else{
     for(unsigned int h=1; h<=hmax;h++){
