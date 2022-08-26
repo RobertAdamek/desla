@@ -380,5 +380,9 @@ HDLP_state_dependent=function(r=NULL, x, y, q=NULL, state_dummy=NULL,
               Thetahat=LP$manual_Thetahat,
               betahats=LP$betahats,
               regressors=LP$regressors,
-              regressors_trimmed=LP$regressors_trimmed))
+              regressors_trimmed=LP$regressors_trimmed,
+              init_residuals=LP$init_residuals,
+              nw_residuals=LP$nw_residuals,
+              dependents=LP$dependents
+              ))
 }
