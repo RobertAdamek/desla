@@ -30,6 +30,9 @@ desla(
   q = NA,
   PIconstant = 0.8,
   PIprobability = 0.05,
+  progress_bar = TRUE,
+  parallel = TRUE,
+  threads = NULL,
   manual_Thetahat_ = NULL,
   manual_Upsilonhat_inv_ = NULL,
   manual_nw_residuals_ = NULL
@@ -85,6 +88,10 @@ desla(
 \item{PIconstant}{(optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
 
 \item{PIprobability}{(optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
+
+\item{parallel}{boolean, whether parallel computing should be used. Default is TRUE.}
+
+\item{threads}{(optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE}. Default is to use all but two.}
 
 \item{manual_Thetahat_}{(optional) matrix with rows the size of H and columns the number of regressors. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)}
 
