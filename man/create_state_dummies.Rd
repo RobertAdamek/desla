@@ -13,7 +13,7 @@ create_state_dummies(x)
 A matrix where each column is a binary indicator for one state.
 }
 \description{
-Creates state dummies for use in \code{\link{HDLP_state_dependent}}.
+Creates state dummies for use in \code{\link{HDLP}}.
 }
 \details{
 The function first checks if \code{x} is already in the correct output format by evaluating if each row sums up to one. If this is not the case, each column is treated as a categorical variable for which its unique entries define the states it can take. If \code{x} contains more than one column, interactions between the variables are created. Example, inputting two variables that can take two states each, results in a total of four possible states, and hence the output matrix contains four columns.

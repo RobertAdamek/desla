@@ -246,8 +246,8 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 }
 
 #' @importFrom Rdpack reprompt
-#' @title High-Dimensional Local Projection
-#' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein.
+#' @title State Dependent High-Dimensional Local Projection
+#' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein. This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
 #' @param x \code{T_}x1 vector containing the shock variable, see \insertCite{plagborg2021local;textual}{desla} for details
 #' @param y \code{T_}x1 vector containing the response variable, see \insertCite{plagborg2021local;textual}{desla} for details
 #' @param r (optional) vector or matrix with \code{T_} rows, containing the "slow" variables, ones which do not react within the same period to a shock, see \insertCite{plagborg2021local;textual}{desla} for details(NULL by default)
@@ -261,79 +261,11 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' @param selection (optional) integer, how should lambda be selected in BOTH the initial and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)
 #' @param PIconstant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
 #' @param progress_bar (optional) boolean, true if a progress bar should be displayed during execution (true by default)
-#' @return Returns a list with the following elements: \cr
-#' \item{\code{intervals}}{matrix containing the point estimates and confidence intervals for the impulse response function, for significance levels given in \code{alphas}}
-#' \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
-#' \item{\code{betahats}}{list of matrices (row vectors), giving the initial lasso estimate at each horizon}
-#' @examples
-#' X<-matrix(rnorm(100*100), nrow=100)
-#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
-#' h<-HDLP(x=X[,4], y=y, q=X[,-4], hmax=5, lags=1)
-#' plot(h)
-#' @references
-#' \insertAllCited{}
-#' @export
-HDLP=function(x, y, r=NULL, q=NULL,
-                          y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
-                          lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
-                          progress_bar=TRUE){
-  if(!is.matrix(x)){
-    x<-as.matrix(x, ncol=1)
-  }
-  if(!is.matrix(y)){
-    y<-as.matrix(y, ncol=1)
-  }
-  if(!is.null(r) && !is.matrix(r)){
-    r<-as.matrix(r, nrow=nrow(x))
-  }
-  if(!is.null(q) && !is.matrix(q)){
-    q<-as.matrix(q, nrow=nrow(x))
-  }
-  if(!is.matrix(alphas)){
-    alphas<-as.matrix(alphas, ncol=1)
-  }
-
-  if(nrow(y)<hmax+lags+5){
-    warning("hmax and lags are too large for the sample size")
-  }
-
-  LP=.Rcpp_local_projection(r, x, y, q,
-                            y_predetermined,cumulate_y, hmax,
-                            lags,alphas, init_partial, selection, PIconstant,
-                            progress_bar)
-  CInames=rep("",2*length(alphas)+1)
-  CInames[length(alphas)+1]="bhat"
-  for(i in 1:length(alphas)){
-    CInames[i]=paste("lower ", alphas[i], sep="")
-    CInames[2*length(alphas)+2-i]=paste("upper ", alphas[i], sep="")
-  }
-  dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
-
-  varnames <- list(x = "X", y = "Y")
-  if (!is.null(colnames(x))) {
-    varnames$x = colnames(x)
-  }
-  if (!is.null(colnames(y))) {
-    varnames$y = colnames(y)
-  }
-
-  out <- list(intervals=LP$intervals,
-              Thetahat=LP$manual_Thetahat,
-              betahats=LP$betahats,
-              varnames=varnames)
-  class(out) <- "hdlp"
-  return(out)
-}
-
-#' @importFrom Rdpack reprompt
-#' @title State Dependent High-Dimensional Local Projection
-#' @description Calculates impulse responses with local projections, using the desla function to estimate the high-dimensional linear models, and provide asymptotic inference. The naming conventions in this function follow the notation in \insertCite{plagborg2021local;textual}{desla}, in particular Equation 1 therein. This function also allows for estimating state-dependent responses, as in \insertCite{ramey2018government;textual}{desla}.
-#' @param state_dummy (optional) matrix or data frame with \code{T_} rows, containing the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state; see 'Details'.
+#' @param state_variables (optional) matrix or data frame with \code{T_} rows, containing the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state; see 'Details'.
 #' @param OLS (optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)
-#' @param parallel boolean, whether parallel computing should be used. Default is FALSE.
+#' @param parallel boolean, whether parallel computing should be used. Default is TRUE.
 #' @param threads (optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE}. Default is to use all but two.
-#' @inheritParams HDLP
-#' @details The input to \code{state_dummy} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
+#' @details The input to \code{state_variables} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
 #' @return Returns a list with the following elements: \cr
 #' \item{\code{intervals}}{list of matrices containing the point estimates and confidence intervals for the impulse response functions in each state, for significance levels given in \code{alphas}}
 #' \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
@@ -342,14 +274,15 @@ HDLP=function(x, y, r=NULL, q=NULL,
 #' X<-matrix(rnorm(100*100), nrow=100)
 #' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
 #' s<-matrix(c(rep(1,50),rep(0,100),rep(1,50)), ncol=2, dimnames = list(NULL, c("A","B")))
-#' h<-HDLP_state_dependent(x=X[,4], y=y, q=X[,-4], state_dummy=s, hmax=5, lags=1)
+#' h<-HDLP(x=X[,4], y=y, q=X[,-4], state_variables=s, hmax=5, lags=1)
+#' plot(h)
 #' @references
 #' \insertAllCited{}
 #' @export
-HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
+HDLP=function(x, y, r=NULL, q=NULL, state_variables=NULL,
               y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
               lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
-              progress_bar=TRUE, OLS=FALSE, parallel=FALSE, threads=NULL){
+              progress_bar=TRUE, OLS=FALSE, parallel=TRUE, threads=NULL){
   if(!is.matrix(x)){
     x<-as.matrix(x, ncol=1)
   }
@@ -365,8 +298,18 @@ HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
   if(!is.matrix(alphas)){
     alphas<-as.matrix(alphas, ncol=1)
   }
-  if(!is.null(state_dummy)){
-      state_dummy <- create_state_dummies(state_dummy)
+  if(!is.null(state_variables)){
+      state_variables <- create_state_dummies(state_variables)
+  }
+  #A check to make sure that hmax+lags isn't too long compared to the effective sample size
+  if(!is.null(state_variables)){
+    effective_ss<-min(colSums(state_variables))
+  }else{
+    effective_ss<-nrow(x)
+  }
+  if(hmax+lags>0.8*effective_ss){
+    hmax<-floor(0.8*effective_ss-lags)
+    warning("hmax and lags are too large compared to the effective sample size, taking hmax=floor(0.8*effective_ss-lags) to avoid unexpected behavior")
   }
   if(parallel){
     if(is.null(threads)){
@@ -375,7 +318,7 @@ HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
   }else{
     threads <- 0
   }
-  LP=.Rcpp_local_projection_state_dependent(r, x, y, q, state_dummy,
+  LP=.Rcpp_local_projection_state_dependent(r, x, y, q, state_variables,
                             y_predetermined,cumulate_y, hmax,
                             lags,alphas, init_partial, selection, PIconstant,
                             progress_bar, OLS, threads)
@@ -385,17 +328,17 @@ HDLP_state_dependent=function(x, y, r=NULL, q=NULL, state_dummy=NULL,
     CInames[i]=paste("lower ", alphas[i], sep="")
     CInames[2*length(alphas)+2-i]=paste("upper ", alphas[i], sep="")
   }
-  if(is.null(state_dummy)){
+  if(is.null(state_variables)){
     dimnames(LP$intervals)<-list(horizon=0:hmax, CInames)
   }else{
     dimnames(LP$intervals)<-list(horizon=0:hmax, CInames,
-                                 state = colnames(state_dummy))
+                                 state = colnames(state_variables))
   }
   #for(i in 1:length(LP$intervals)){
   #  dimnames(LP$intervals[[i]])<-list(horizon=0:hmax, CInames)
   #}
-  #if(!is.null(state_dummy)){
-  #  names(LP$intervals)<-paste0("state ", 1:ncol(state_dummy))
+  #if(!is.null(state_variables)){
+  #  names(LP$intervals)<-paste0("state ", 1:ncol(state_variables))
   #}
   varnames <- list(x = "X", y = "Y")
   if (!is.null(colnames(x))) {
@@ -506,7 +449,7 @@ plot.hdlp <- function(x, y = NULL, response = NULL, impulse = NULL, states = NUL
 }
 
 #' Create State Dummies
-#' @description Creates state dummies for use in \code{\link{HDLP_state_dependent}}.
+#' @description Creates state dummies for use in \code{\link{HDLP}}.
 #' @param x Contains the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state.
 #' @details The function first checks if \code{x} is already in the correct output format by evaluating if each row sums up to one. If this is not the case, each column is treated as a categorical variable for which its unique entries define the states it can take. If \code{x} contains more than one column, interactions between the variables are created. Example, inputting two variables that can take two states each, results in a total of four possible states, and hence the output matrix contains four columns.
 #' @return A matrix where each column is a binary indicator for one state.

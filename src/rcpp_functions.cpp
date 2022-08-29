@@ -666,7 +666,6 @@ lasso_output lasso(const arma::mat& X, const arma::colvec& y, const arma::vec& g
   unsigned int N=X.n_cols;
   unsigned int gridsize=grid.n_elem;
   arma::mat betahats(N,gridsize);
-
   switch(opt_type) {
   case 1: //"naive"
     betahats=coordinate_descent_naive(X, y, grid, opt_threshold,
@@ -1384,7 +1383,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
   for(unsigned int i=0; i<H.n_elem; i++){
     nw_opt_types(i)=3;
   }
-  Progress p(hmax+2, progress_bar);
+  Progress p(hmax+1, progress_bar);
   arma::mat intervals_zeros(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
   arma::cube intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, states);
   for(unsigned int i=0; i<states; i++){
@@ -1478,6 +1477,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
 #endif
 # pragma omp parallel for
     for(unsigned int h=1; h<=hmax;h++){
+      if (!Progress::check_abort()){
       reg_output d_p;
       arma::mat dependent_p;
       dependent_p=mat(T_,1,fill::zeros);
@@ -1521,6 +1521,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
         intervals(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled).row(j);
       }
       p.increment();
+    }
     }
   }else{
     for(unsigned int h=1; h<=hmax;h++){
@@ -1762,8 +1763,7 @@ LP_output local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
   int init_opt_type=3;
 
   arma::vec nw_opt_types(1);nw_opt_types(0)=3;
-
-  Progress p(hmax+2, progress_bar);
+  Progress p(hmax+1, progress_bar);
   arma::mat intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
   arma::mat R(1,1, fill::eye);
   arma::vec Q(1, fill::ones);
@@ -1858,8 +1858,7 @@ LP_output local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
                                                  g["init_grid"], g["nw_grids"], init_selection_type, nw_selection_types,
                                                  init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
                                                  0, 0, alphas, R, Q, PIconstant, 0.05,
-                                                 mThetahat, mUpsilonhat_inv,trimmed_residuals
-    );
+                                                 mThetahat, mUpsilonhat_inv,trimmed_residuals);
     temp=d["inference"];
     tempmat=as<arma::mat>(temp["intervals_unscaled"]);
     intervals.row(h)=tempmat.row(0);
