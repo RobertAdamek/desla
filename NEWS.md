@@ -1,3 +1,5 @@
+# desla 0.2.0
+
 # desla 0.1.0.9000
 
 * Added the function HDLP_state_dependent, which allows for estimation of impulse responses in different states, and also an option to estimate them with OLS rather than desparsified lasso, using the same long-run variance estimator.
