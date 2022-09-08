@@ -267,7 +267,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' @param hmax (optional) integer, the maximum horizon up to which the impulse responses are computed. Should not exceed the \code{T_}-\code{lags} (24 by default)
 #' @param lags (optional) integer, the number of lags to be included in the local projection model. Should not exceed \code{T_}-\code{hmax}(12 by default)
 #' @param alphas (optional) vector of significance levels (0.05 by default)
-#' @param init_partial (optional) bool, true if the parameter of interest should NOT be penalized (true by default)
+#' @param init_partial (optional) boolean, true if the parameter of interest should NOT be penalized (true by default)
 #' @param selection (optional) integer, how should lambda be selected in BOTH the initial and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)
 #' @param PIconstant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
 #' @param progress_bar (optional) boolean, true if a progress bar should be displayed during execution (true by default)
