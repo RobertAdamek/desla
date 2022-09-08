@@ -7,7 +7,7 @@ Authors@R: c(
     person("Stephan", "Smeekes", email = "s.smeekes@maastrichtuniversity.nl", role = "aut"),
     person("Ines", "Wilms", email = "i.wilms@maastrichtuniversity.nl", role = "aut")
     )
-Description: Calculates the desparsified lasso as originally introduced in van de Geer et al. (2014) <doi:10.1214/14-AOS1221>, and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in Adamek et al. (2020) <arXiv:2007.10952>. Also estimates high-himensional local projections by the desparsified lasso, as described in Adamek et al. (2022) <arXiv:2209.03218>.
+Description: Calculates the desparsified lasso as originally introduced in van de Geer et al. (2014) <doi:10.1214/14-AOS1221>, and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in Adamek et al. (2020) <arXiv:2007.10952>. Also estimates high-dimensional local projections by the desparsified lasso, as described in Adamek et al. (2022) <arXiv:2209.03218>.
 License: GPL (>=2)
 Encoding: UTF-8
 LazyData: true
