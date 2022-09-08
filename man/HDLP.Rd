@@ -45,7 +45,7 @@ HDLP(
 
 \item{alphas}{(optional) vector of significance levels (0.05 by default)}
 
-\item{init_partial}{(optional) bool, true if the parameter of interest should NOT be penalized (true by default)}
+\item{init_partial}{(optional) boolean, true if the parameter of interest should NOT be penalized (true by default)}
 
 \item{selection}{(optional) integer, how should lambda be selected in BOTH the initial and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
 
