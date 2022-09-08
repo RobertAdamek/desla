@@ -64,21 +64,64 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
                           init_nonzero_limit=NA, nw_nonzero_limits=NA, init_opt_threshold=NA, nw_opt_thresholds=NA, init_opt_type=NA, nw_opt_types=NA,
                           LRVtrunc=0, T_multiplier=0, alphas=c(0.01,0.05,0.1), R=NA, q=NA, PIconstant=0.8, PIprobability=0.05,
                           manual_Thetahat_=NULL, manual_Upsilonhat_inv_=NULL, manual_nw_residuals_=NULL){
-  H=H-1 #turns indexes into C++ format
-  h=length(H)
-  if(!is.matrix(X)){
-    if(!is.data.frame(X)){
-      warning("X needs to be a matrix or data.frame")
-    }else{
-      X<-as.matrix(X)
+  if (is.numeric(H)) {
+    if (!is.null(colnames(X))) {
+    } else {
+      colnames(X) <- paste0("X", 1:NCOL(X))
+    }
+    Hnames <- colnames(X)[H]
+  } else {
+    Hnames <- H
+  }
+  if(is.data.frame(X)) {
+    Xnames <- colnames(X)
+    tempXnames <- NULL
+    for (i in 1:length(Xnames)) {
+      tempXnames <- c(tempXnames, paste0("X", i, Xnames[i]))
+    }
+    colnames(X) <- tempXnames
+    Htemp <- match(Hnames, Xnames)
+    for (i in 1:length(Htemp)) {
+      Hnames[i] <- paste0("X", Htemp[i], Hnames[i])
+    }
+
+    df <- data.frame(y, X)
+    X <- stats::model.matrix(y ~ ., df)[, -1] # Remove the intercept
+    Xnames1 <- colnames(X)
+    H1 <- NULL
+    for (i in 1:length(H)) {
+      s <- sapply(1:length(Xnames1), function(x){startsWith(Xnames1[x], tempXnames[H[i]])})
+      H1 = c(H1, (1:length(Xnames1))[s])
+    }
+    for (i in 1:length(Xnames1)) {
+      Xnames1[i] <- substr(Xnames1[i], 3, nchar(Xnames1[i]))
+    }
+    colnames(X) <- Xnames1
+    H <- H1
+  }
+  if (is.numeric(H)) {
+    H=H-1 #turns indexes into C++ format
+  } else {
+    if (!is.null(colnames(X))) {
+      H <- match(H, colnames(X)) - 1
+    } else {
+      stop("Invalid argument H")
     }
   }
+  h=length(H)
+  if(!is.matrix(X)){
+    # if(!is.data.frame(X)){
+    #   warning("X needs to be a matrix or data.frame")
+    # }else{
+      X<-as.matrix(X)
+    # }
+  }
   if(!is.matrix(y)){
-    if(!is.data.frame(y) && !is.vector(y)){
-      warning("y needs to be a vector, matrix, or data.frame")
-    }else{
+    # if(!is.data.frame(y) && !is.vector(y)){
+    #   warning("y needs to be a vector, matrix, or data.frame")
+    # }else{
       y<-as.matrix(y)
-    }
+    # }
   }
   check_cols <- apply(X, 2, function(x){max(x) - min(x) == 0})
   if( (demean || scale) && (sum(check_cols)>0) ){
