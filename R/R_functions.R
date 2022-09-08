@@ -26,8 +26,11 @@
 #' @param q (optional) vector of size same as the rows of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (zeroes by default)
 #' @param PIconstant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
 #' @param PIprobability (optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
+#' @param progress_bar (optional) boolean, displays a progress bar while running if true, tracking the progress of estimating the nodewise regressions (TRUE by default)
+#' @param parallel boolean, whether parallel computing should be used (TRUE by default)
+#' @param threads (optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE} (default is to use all but two)
 #' @param manual_Thetahat_ (optional) matrix with rows the size of H and columns the number of regressors. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)
-#' @param manual_Upsilonhat_inv_ (optional) matrix with rows and columns the size of H. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)
+#' @param manual_Upsilonhat_inv_ (optional) matrix with rows and columns the size of H. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL by default)
 #' @param manual_nw_residuals_ (optional) matrix with rows equal to the sample size and columns the size of H, containing the residuals from the nodewise regressions. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)
 
 #' @return Returns a list with the following elements: \cr
@@ -53,8 +56,8 @@
 #' \item{\code{init_nonzero_pos}}{vector of indexes of the nonzero parameters in the initial lasso}
 #' \item{\code{nw_nonzero_poss}}{list of vectors for each nodewise regression, giving the indexes of nonzero parameters in the nodewise regressions}
 #' @examples
-#' X<-matrix(rnorm(100*100), nrow=100)
-#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
+#' X<-matrix(rnorm(50*50), nrow=50)
+#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(50)
 #' H<-c(1, 2, 3, 4)
 #' d<-desla(X, y, H)
 #' @references
@@ -62,7 +65,7 @@
 #' @export
 desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE, gridsize=100, init_grid=NA, nw_grids=NA, init_selection_type=NA, nw_selection_types=NA,
                           init_nonzero_limit=NA, nw_nonzero_limits=NA, init_opt_threshold=NA, nw_opt_thresholds=NA, init_opt_type=NA, nw_opt_types=NA,
-                          LRVtrunc=0, T_multiplier=0, alphas=c(0.01,0.05,0.1), R=NA, q=NA, PIconstant=0.8, PIprobability=0.05,
+                          LRVtrunc=0, T_multiplier=0, alphas=c(0.01,0.05,0.1), R=NA, q=NA, PIconstant=0.8, PIprobability=0.05, progress_bar=TRUE, parallel=TRUE, threads=NULL,
                           manual_Thetahat_=NULL, manual_Upsilonhat_inv_=NULL, manual_nw_residuals_=NULL){
   if (is.numeric(H)) {
     if (!is.null(colnames(X))) {
@@ -212,6 +215,13 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
     warning("length of q does not match H")
     q=rep(0, nrow(R))
   }
+  if(parallel){
+    if(is.null(threads)){
+      threads <- parallelly::availableCores(omit = 2)
+    }
+  }else{
+    threads <- 0
+  }
   if(!is.null(manual_Thetahat_)){
     manual_Thetahat_<-as.matrix(manual_Thetahat_)
     if(nrow(manual_Thetahat_)!=h || ncol(manual_Thetahat_)!=ncol(X)){
@@ -224,16 +234,16 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
       warning(paste0("manual_Upsilonhat_inv_ has incorrect dimensions"))
     }
   }
-   if(!is.null(manual_nw_residuals_)){
-     manual_nw_residuals_<-as.matrix(manual_nw_residuals_)
-     if(nrow(manual_nw_residuals_)!=nrow(X) || ncol(manual_nw_residuals_)!=h){
-       warning(paste0("manual_nw_residuals_ has incorrect dimensions"))
-     }
-   }
+  if(!is.null(manual_nw_residuals_)){
+    manual_nw_residuals_<-as.matrix(manual_nw_residuals_)
+    if(nrow(manual_nw_residuals_)!=nrow(X) || ncol(manual_nw_residuals_)!=h){
+      warning(paste0("manual_nw_residuals_ has incorrect dimensions"))
+    }
+  }
 
   PDLI=.Rwrap_partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                  LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability,
+                                                  LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability, progress_bar, threads,
                                                   manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_)
   CInames=rep("",2*length(alphas)+1)
   CInames[length(alphas)+1]="bhat"
@@ -300,7 +310,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' @param hmax (optional) integer, the maximum horizon up to which the impulse responses are computed. Should not exceed the \code{T_}-\code{lags} (24 by default)
 #' @param lags (optional) integer, the number of lags to be included in the local projection model. Should not exceed \code{T_}-\code{hmax}(12 by default)
 #' @param alphas (optional) vector of significance levels (0.05 by default)
-#' @param init_partial (optional) bool, true if the parameter of interest should NOT be penalized (true by default)
+#' @param init_partial (optional) boolean, true if the parameter of interest should NOT be penalized (true by default)
 #' @param selection (optional) integer, how should lambda be selected in BOTH the initial and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)
 #' @param PIconstant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
 #' @param progress_bar (optional) boolean, true if a progress bar should be displayed during execution (true by default)
@@ -314,9 +324,9 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
 #' \item{\code{betahats}}{list of matrices (column vectors), giving the initial lasso estimate at each horizon}
 #' @examples
-#' X<-matrix(rnorm(100*100), nrow=100)
-#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
-#' s<-matrix(c(rep(1,50),rep(0,100),rep(1,50)), ncol=2, dimnames = list(NULL, c("A","B")))
+#' X<-matrix(rnorm(50*50), nrow=50)
+#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(50)
+#' s<-matrix(c(rep(1,25),rep(0,50),rep(1,25)), ncol=2, dimnames = list(NULL, c("A","B")))
 #' h<-HDLP(x=X[,4], y=y, q=X[,-4], state_variables=s, hmax=5, lags=1)
 #' plot(h)
 #' @references

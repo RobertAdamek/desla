@@ -964,7 +964,7 @@ struct nodewise_manual{
 
 partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& init_partial, const LogicalVector& nw_partials, const arma::vec& init_grid, const arma::mat& nw_grids,
                                                              const int& init_selection_type, const arma::vec& nw_selection_types,const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits,
-                                                             const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types, const double& PIconstant, const double& PIprobability,
+                                                             const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types, const double& PIconstant, const double& PIprobability, bool progress_bar, unsigned int threads,
                                                              //Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_
                                                              nodewise_manual nm){
 
@@ -985,7 +985,7 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
   arma::uvec minusj, Hminusj, nw_H;
   arma::mat nw_residuals(T_,h), Thetahat(h,N, fill::zeros), Upsilonhat_inv(h,h, fill::zeros), gammahats(N-1,h), Gammahat(h,N, fill::zeros), Xminusj(T_,N-1);
   partial_lasso_selected_output nw_L;
-  std::list<arma::uvec> nw_nonzero_poss;
+  std::list<arma::uvec> nw_nonzero_poss(h);
   //If we manually provide ALL the necessary nodewise components, we don't need to estimate them any more
   //if(manual_Thetahat_.isNotNull() && manual_Upsilonhat_inv_.isNotNull() && manual_nw_residuals_.isNotNull()){
   //  NumericMatrix temp_manual_Thetahat(manual_Thetahat_);  // conversion from Nullable<NumericMatrix> to NumericMatrix
@@ -1001,36 +1001,87 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
     Upsilonhat_inv=nm.manual_Upsilonhat_inv;
     nw_residuals=nm.manual_nw_residuals;
   }else{
-    for(i=0;i<h;i++){
-      j=H(i);
-      x_j=X.col(j);
-      minusj=linspace<arma::uvec>(0,N-1,N); minusj.shed_row(j);
-      Xminusj=X.cols(minusj);
-      Hminusj=H; Hminusj.shed_row(i);
-      nw_H=unique_match(minusj, Hminusj);
-      nw_grid=(nw_grids.row(i)).t();
-      nw_partial=nw_partials(i);
-      nw_selection_type=nw_selection_types(i);
-      nw_nonzero_limit=nw_nonzero_limits(i);
-      nw_opt_threshold=nw_opt_thresholds(i);
-      nw_opt_type=nw_opt_types(i);
-      nw_L=partial_lasso_selected(Xminusj, x_j, nw_H, nw_partial, nw_grid, nw_selection_type, nw_nonzero_limit,
-                                  nw_opt_threshold, nw_opt_type, PIconstant, PIprobability);
-      tauhat_j=nw_L.SSR/double(T_)+2*nw_L.lambda*sum(abs(nw_L.betahat));
-      Upsilonhat_inv(i,i)= 1.0/tauhat_j;
-      Gammahat(i,j)= 1;
-      i_=i;
-      Gammahat.submat(i_,minusj)= -(nw_L.betahat).t();
+    Progress p_nodewise(h,progress_bar);
+    if(threads>0){
+#ifdef _OPENMP
+      omp_set_num_threads(threads);
+#endif
+# pragma omp parallel for schedule(dynamic)
+      for(i=0;i<h;i++){
+        if ( ! Progress::check_abort() ) {
+          unsigned int j_p=H(i);
+          arma::vec x_j_p=X.col(j_p);
+          arma::uvec minusj_p=linspace<arma::uvec>(0,N-1,N); minusj_p.shed_row(j_p);
+          arma::mat Xminusj_p(T_,N-1); Xminusj_p=X.cols(minusj_p);
+          arma::uvec Hminusj_p=H; Hminusj_p.shed_row(i);
+          arma::uvec nw_H_p=unique_match(minusj_p, Hminusj_p);
+          arma::vec nw_grid_p=(nw_grids.row(i)).t();
+          bool nw_partial_p=nw_partials(i);
+          int nw_selection_type_p=nw_selection_types(i);
+          double nw_nonzero_limit_p=nw_nonzero_limits(i);
+          double nw_opt_threshold_p=nw_opt_thresholds(i);
+          int nw_opt_type_p=nw_opt_types(i);
+          partial_lasso_selected_output nw_L_p=partial_lasso_selected(Xminusj_p, x_j_p, nw_H_p, nw_partial_p, nw_grid_p, nw_selection_type_p, nw_nonzero_limit_p,
+                                      nw_opt_threshold_p, nw_opt_type_p, PIconstant, PIprobability);
+          double tauhat_j_p=nw_L_p.SSR/double(T_)+2*nw_L_p.lambda*sum(abs(nw_L_p.betahat));
+          Upsilonhat_inv(i,i)= 1.0/tauhat_j_p;
+          Gammahat(i,j_p)= 1;
+          arma::uvec i_p; i_p=i;
+          Gammahat.submat(i_p,minusj_p)= -(nw_L_p.betahat).t();
 
-      gammahats.col(i)=nw_L.betahat;
-      nw_gridsizes(i)=nw_L.gridsize;
-      nw_lambdas(i)=nw_L.lambda;
-      nw_criterion_values(i)=nw_L.criterion_value;
-      nw_SSRs(i)=nw_L.SSR;
-      nw_residuals.col(i)=nw_L.residual;
-      nw_lambda_poss(i)=nw_L.lambda_pos;
-      nw_nonzeros(i)=nw_L.nonzero;
-      nw_nonzero_poss.push_back(nw_L.nonzero_pos);
+          gammahats.col(i)=nw_L_p.betahat;
+          nw_gridsizes(i)=nw_L_p.gridsize;
+          nw_lambdas(i)=nw_L_p.lambda;
+          nw_criterion_values(i)=nw_L_p.criterion_value;
+          nw_SSRs(i)=nw_L_p.SSR;
+          nw_residuals.col(i)=nw_L_p.residual;
+          nw_lambda_poss(i)=nw_L_p.lambda_pos;
+          nw_nonzeros(i)=nw_L_p.nonzero;
+          //nw_nonzero_poss.push_back(nw_L_p.nonzero_pos);
+          //nw_nonzero_poss(i)=nw_L_p.nonzero_pos;
+          std::list<arma::uvec>::iterator it_p=nw_nonzero_poss.begin(); std::advance(it_p,i); *it_p=nw_L_p.nonzero_pos;
+
+          p_nodewise.increment();
+        }
+      }
+    }else{
+      for(i=0;i<h;i++){
+        if ( ! Progress::check_abort() ) {
+          j=H(i);
+          x_j=X.col(j);
+          minusj=linspace<arma::uvec>(0,N-1,N); minusj.shed_row(j);
+          Xminusj=X.cols(minusj);
+          Hminusj=H; Hminusj.shed_row(i);
+          nw_H=unique_match(minusj, Hminusj);
+          nw_grid=(nw_grids.row(i)).t();
+          nw_partial=nw_partials(i);
+          nw_selection_type=nw_selection_types(i);
+          nw_nonzero_limit=nw_nonzero_limits(i);
+          nw_opt_threshold=nw_opt_thresholds(i);
+          nw_opt_type=nw_opt_types(i);
+          nw_L=partial_lasso_selected(Xminusj, x_j, nw_H, nw_partial, nw_grid, nw_selection_type, nw_nonzero_limit,
+                                      nw_opt_threshold, nw_opt_type, PIconstant, PIprobability);
+          tauhat_j=nw_L.SSR/double(T_)+2*nw_L.lambda*sum(abs(nw_L.betahat));
+          Upsilonhat_inv(i,i)= 1.0/tauhat_j;
+          Gammahat(i,j)= 1;
+          i_=i;
+          Gammahat.submat(i_,minusj)= -(nw_L.betahat).t();
+
+          gammahats.col(i)=nw_L.betahat;
+          nw_gridsizes(i)=nw_L.gridsize;
+          nw_lambdas(i)=nw_L.lambda;
+          nw_criterion_values(i)=nw_L.criterion_value;
+          nw_SSRs(i)=nw_L.SSR;
+          nw_residuals.col(i)=nw_L.residual;
+          nw_lambda_poss(i)=nw_L.lambda_pos;
+          nw_nonzeros(i)=nw_L.nonzero;
+          //nw_nonzero_poss.push_back(nw_L.nonzero_pos);
+          //nw_nonzero_poss(i)=nw_L.nonzero_pos;
+          std::list<arma::uvec>::iterator it=nw_nonzero_poss.begin(); std::advance(it,i); *it=nw_L.nonzero_pos;
+
+          p_nodewise.increment();
+        }
+      }
     }
     //If only some of the nodewise components were provided, here they overwrite the ones that were just calculated
     //if(manual_Upsilonhat_inv_.isNotNull()){
@@ -1101,12 +1152,12 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
 partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials,
                                                                                  const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
                                                                                  const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types,
-                                                                                 const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability,
+                                                                                 const double& LRVtrunc, const double& T_multiplier, const NumericVector& alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability, bool progress_bar, unsigned int threads,
                                                                                  //Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_
                                                                                  nodewise_manual nm){
   standardize_output s=standardize(X, y, demean, scale);
   partial_desparsified_lasso_output PDL=partial_desparsified_lasso(s.X_scaled, s.y_scaled, H, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
-                                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types, PIconstant, PIprobability,
+                                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types, PIconstant, PIprobability, progress_bar, threads,
                                                                    //manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_
                                                                    nm);
   arma::vec bhat_1_unscaled=unscale(s, PDL.bhat_1, H, demean, scale);
@@ -1383,7 +1434,6 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
   for(unsigned int i=0; i<H.n_elem; i++){
     nw_opt_types(i)=3;
   }
-  Progress p(hmax+1, progress_bar);
   arma::mat intervals_zeros(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
   arma::cube intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, states);
   for(unsigned int i=0; i<states; i++){
@@ -1444,7 +1494,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     partial_desparsified_lasso_inference_output pdli=partial_desparsified_lasso_inference(regressors_trimmed, dependent_trimmed, H, true, true, init_partial, nw_partials,
                                                                                           g.init_grid, g.nw_grids, init_selection_type, nw_selection_types,
                                                                                           init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                                                          0, 0, alphas, R, Q, PIconstant, 0.05,
+                                                                                          0, 0, alphas, R, Q, PIconstant, 0.05, progress_bar, threads,
                                                                                           nm);
     mThetahat=pdli.Thetahat;
     mUpsilonhat_inv=pdli.Upsilonhat_inv;
@@ -1470,58 +1520,58 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
       intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);
     }
   }
-  p.increment();
+  Progress p(hmax, progress_bar);
   if(threads>0){
 #ifdef _OPENMP
     omp_set_num_threads(threads);
 #endif
-# pragma omp parallel for
+# pragma omp parallel for schedule(dynamic)
     for(unsigned int h=1; h<=hmax;h++){
       if (!Progress::check_abort()){
-      reg_output d_p;
-      arma::mat dependent_p;
-      dependent_p=mat(T_,1,fill::zeros);
-      if(cumulate_y){
-        for(unsigned int i=0; i<T_-h;i++){
-          dependent_p.row(i)=sum(y.rows(i,i+h));
+        reg_output d_p;
+        arma::mat dependent_p;
+        dependent_p=mat(T_,1,fill::zeros);
+        if(cumulate_y){
+          for(unsigned int i=0; i<T_-h;i++){
+            dependent_p.row(i)=sum(y.rows(i,i+h));
+          }
+        }else{
+          for(unsigned int k=0; k<T_-h;k++){
+            dependent_p.row(k)=y.row(k+h);
+          }
         }
-      }else{
-        for(unsigned int k=0; k<T_-h;k++){
-          dependent_p.row(k)=y.row(k+h);
+        arma::mat joint_trimmed_p=join_horiz(dependent_p,regressors); joint_trimmed_p=joint_trimmed_p.rows(lags,T_-h-1);
+        arma::mat dependent_trimmed_p=joint_trimmed_p.col(0);
+        arma::mat regressors_trimmed_p=joint_trimmed_p.cols(1, joint_trimmed.n_cols-1);
+        if(OLS){
+          d_p=OLS_HAC(regressors_trimmed_p, dependent_trimmed_p, H, true, true, 0, 0, alphas);
+        }else{
+          nodewise_manual nm_p;
+          nm_p.use_manual=true;
+          nm_p.manual_Thetahat=mThetahat;
+          nm_p.manual_Upsilonhat_inv=mUpsilonhat_inv;
+          nm_p.manual_nw_residuals=mnw_residuals(span(0,regressors_trimmed_p.n_rows-1), span(0,H.n_elem-1));
+          grids_output g_p=build_gridsXy(regressors_trimmed_p.n_rows, regressors_trimmed_p.n_cols, 50, regressors_trimmed_p, dependent_trimmed_p, H, true, true);
+          partial_desparsified_lasso_inference_output pdli_p=partial_desparsified_lasso_inference(regressors_trimmed_p, dependent_trimmed_p, H, true, true, init_partial, nw_partials,
+                                                                                                  g_p.init_grid, g_p.nw_grids, init_selection_type, nw_selection_types,
+                                                                                                  init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
+                                                                                                  0, 0, alphas, R, Q, PIconstant, 0.05, false, 0,
+                                                                                                  nm_p);
+          d_p.Omegahat=pdli_p.Omegahat;
+          d_p.z_quantiles=pdli_p.z_quantiles;
+          d_p.intervals=pdli_p.intervals;
+          d_p.intervals_unscaled=pdli_p.intervals_unscaled;
+          d_p.betahat=pdli_p.betahat;
+          d_p.b_H=pdli_p.bhat_1;
+          d_p.b_H_unscaled=pdli_p.bhat_1_unscaled;
+          d_p.Thetahat=pdli_p.Thetahat;
         }
+        betahats.col(h)=d_p.betahat;
+        for(unsigned int j=0; j<states; j++){
+          intervals(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled).row(j);
+        }
+        p.increment();
       }
-      arma::mat joint_trimmed_p=join_horiz(dependent_p,regressors); joint_trimmed_p=joint_trimmed_p.rows(lags,T_-h-1);
-      arma::mat dependent_trimmed_p=joint_trimmed_p.col(0);
-      arma::mat regressors_trimmed_p=joint_trimmed_p.cols(1, joint_trimmed.n_cols-1);
-      if(OLS){
-        d_p=OLS_HAC(regressors_trimmed_p, dependent_trimmed_p, H, true, true, 0, 0, alphas);
-      }else{
-        nodewise_manual nm_p;
-        nm_p.use_manual=true;
-        nm_p.manual_Thetahat=mThetahat;
-        nm_p.manual_Upsilonhat_inv=mUpsilonhat_inv;
-        nm_p.manual_nw_residuals=mnw_residuals(span(0,regressors_trimmed_p.n_rows-1), span(0,H.n_elem-1));
-        grids_output g_p=build_gridsXy(regressors_trimmed_p.n_rows, regressors_trimmed_p.n_cols, 50, regressors_trimmed_p, dependent_trimmed_p, H, true, true);
-        partial_desparsified_lasso_inference_output pdli_p=partial_desparsified_lasso_inference(regressors_trimmed_p, dependent_trimmed_p, H, true, true, init_partial, nw_partials,
-                                                                                                g_p.init_grid, g_p.nw_grids, init_selection_type, nw_selection_types,
-                                                                                                init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                                                                0, 0, alphas, R, Q, PIconstant, 0.05,
-                                                                                                nm_p);
-        d_p.Omegahat=pdli_p.Omegahat;
-        d_p.z_quantiles=pdli_p.z_quantiles;
-        d_p.intervals=pdli_p.intervals;
-        d_p.intervals_unscaled=pdli_p.intervals_unscaled;
-        d_p.betahat=pdli_p.betahat;
-        d_p.b_H=pdli_p.bhat_1;
-        d_p.b_H_unscaled=pdli_p.bhat_1_unscaled;
-        d_p.Thetahat=pdli_p.Thetahat;
-      }
-      betahats.col(h)=d_p.betahat;
-      for(unsigned int j=0; j<states; j++){
-        intervals(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled).row(j);
-      }
-      p.increment();
-    }
     }
   }else{
     for(unsigned int h=1; h<=hmax;h++){
@@ -1552,7 +1602,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
         partial_desparsified_lasso_inference_output pdli_p=partial_desparsified_lasso_inference(regressors_trimmed_p, dependent_trimmed_p, H, true, true, init_partial, nw_partials,
                                                                                                 g_p.init_grid, g_p.nw_grids, init_selection_type, nw_selection_types,
                                                                                                 init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                                                                0, 0, alphas, R, Q, PIconstant, 0.05,
+                                                                                                0, 0, alphas, R, Q, PIconstant, 0.05, false, 0,
                                                                                                 nm_p);
         d_p.Omegahat=pdli_p.Omegahat;
         d_p.z_quantiles=pdli_p.z_quantiles;
@@ -1614,7 +1664,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
 List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::colvec& y, const arma::uvec& H, const bool& demean, const bool& scale, const bool& init_partial, const LogicalVector& nw_partials,
                                                 const arma::vec& init_grid, const arma::mat& nw_grids, const int& init_selection_type, const arma::vec& nw_selection_types,
                                                 const double& init_nonzero_limit, const arma::vec& nw_nonzero_limits, const double& init_opt_threshold, const arma::vec& nw_opt_thresholds, const int& init_opt_type, const arma::vec& nw_opt_types,
-                                                const double& LRVtrunc, const double& T_multiplier, const NumericVector alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability,
+                                                const double& LRVtrunc, const double& T_multiplier, const NumericVector alphas, const arma::mat& R, const arma::vec& q, const double& PIconstant, const double& PIprobability, bool progress_bar, unsigned int threads,
                                                 Nullable<NumericMatrix> manual_Thetahat_, Nullable<NumericMatrix> manual_Upsilonhat_inv_, Nullable<NumericMatrix> manual_nw_residuals_){
   //If we manually provide ALL the necessary nodewise components, we don't need to estimate them any more
   nodewise_manual nm;
@@ -1634,7 +1684,7 @@ List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::
   partial_desparsified_lasso_inference_output PDLI=partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials,
                                                                                         init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                                                         init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                                                        LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability,
+                                                                                        LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability, progress_bar, threads,
                                                                                         //manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_
                                                                                         nm);
   List misc=List::create(Named("N")=PDLI.N,
@@ -1723,7 +1773,7 @@ List Rwrap_build_gridsXy(unsigned int T_, unsigned int N, unsigned int size, arm
 LP_output local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const arma::vec& y, Nullable<NumericMatrix> q_,
                            const bool& y_predetermined,const bool& cumulate_y, const unsigned int& hmax,
                            const unsigned int& lags,const NumericVector& alphas, const bool& init_partial, const int& selection, const double& PIconstant,
-                           const bool& progress_bar){
+                           const bool& progress_bar, const unsigned int& threads){
   arma::mat w;
   arma::mat w_lags;
   arma::mat regressors;
@@ -1763,7 +1813,6 @@ LP_output local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
   int init_opt_type=3;
 
   arma::vec nw_opt_types(1);nw_opt_types(0)=3;
-  Progress p(hmax+1, progress_bar);
   arma::mat intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
   arma::mat R(1,1, fill::eye);
   arma::vec Q(1, fill::ones);
@@ -1814,7 +1863,7 @@ LP_output local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
   d=Rwrap_partial_desparsified_lasso_inference(regressors_trimmed, dependent_trimmed, H, true, true, init_partial, nw_partials,
                                                g["init_grid"], g["nw_grids"], init_selection_type, nw_selection_types,
                                                init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                               0, 0, alphas, R, Q, PIconstant, 0.05,
+                                               0, 0, alphas, R, Q, PIconstant, 0.05, progress_bar, threads,
                                                R_NilValue, R_NilValue, R_NilValue);
   mThetahat=as<NumericMatrix>(d["Thetahat"]);
   mUpsilonhat_inv=as<NumericMatrix>(d["Upsilonhat_inv"]);
@@ -1835,6 +1884,7 @@ LP_output local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
   }
 
   //estimate at other horizons
+  Progress p(hmax, progress_bar);
   for(unsigned int h=1; h<=hmax;h++){
     if (Progress::check_abort()){
       break;
@@ -1857,7 +1907,7 @@ LP_output local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
     d=Rwrap_partial_desparsified_lasso_inference(regressors_trimmed, dependent_trimmed, H, true, true, init_partial, nw_partials,
                                                  g["init_grid"], g["nw_grids"], init_selection_type, nw_selection_types,
                                                  init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                 0, 0, alphas, R, Q, PIconstant, 0.05,
+                                                 0, 0, alphas, R, Q, PIconstant, 0.05, false, 0,
                                                  mThetahat, mUpsilonhat_inv,trimmed_residuals);
     temp=d["inference"];
     tempmat=as<arma::mat>(temp["intervals_unscaled"]);
@@ -1877,11 +1927,11 @@ LP_output local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
 List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const arma::vec& y, Nullable<NumericMatrix> q_,
                             const bool& y_predetermined,const bool& cumulate_y, const unsigned int& hmax,
                             const unsigned int& lags,const NumericVector& alphas, const bool& init_partial, const int& selection, const double& PIconstant,
-                            const bool& progress_bar){
+                            const bool& progress_bar, const unsigned int& threads){
   LP_output LPo=local_projection(r_, x, y,  q_,
                                       y_predetermined, cumulate_y, hmax,
                                       lags, alphas, init_partial, selection, PIconstant,
-                                      progress_bar);
+                                      progress_bar, threads);
   return(List::create(Named("intervals")=LPo.intervals,
                       Named("manual_Thetahat")=LPo.manual_Thetahat,
                       Named("betahats")=LPo.betahats));

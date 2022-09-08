@@ -45,7 +45,7 @@ HDLP(
 
 \item{alphas}{(optional) vector of significance levels (0.05 by default)}
 
-\item{init_partial}{(optional) bool, true if the parameter of interest should NOT be penalized (true by default)}
+\item{init_partial}{(optional) boolean, true if the parameter of interest should NOT be penalized (true by default)}
 
 \item{selection}{(optional) integer, how should lambda be selected in BOTH the initial and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
 
@@ -72,9 +72,9 @@ Calculates impulse responses with local projections, using the desla function to
 The input to \code{state_variables} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
 }
 \examples{
-X<-matrix(rnorm(100*100), nrow=100)
-y<-X[,1:4] \%*\% c(1, 2, 3, 4) + rnorm(100)
-s<-matrix(c(rep(1,50),rep(0,100),rep(1,50)), ncol=2, dimnames = list(NULL, c("A","B")))
+X<-matrix(rnorm(50*50), nrow=50)
+y<-X[,1:4] \%*\% c(1, 2, 3, 4) + rnorm(50)
+s<-matrix(c(rep(1,25),rep(0,50),rep(1,25)), ncol=2, dimnames = list(NULL, c("A","B")))
 h<-HDLP(x=X[,4], y=y, q=X[,-4], state_variables=s, hmax=5, lags=1)
 plot(h)
 }
