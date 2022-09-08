@@ -56,8 +56,8 @@
 #' \item{\code{init_nonzero_pos}}{vector of indexes of the nonzero parameters in the initial lasso}
 #' \item{\code{nw_nonzero_poss}}{list of vectors for each nodewise regression, giving the indexes of nonzero parameters in the nodewise regressions}
 #' @examples
-#' X<-matrix(rnorm(100*100), nrow=100)
-#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(100)
+#' X<-matrix(rnorm(50*50), nrow=50)
+#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(50)
 #' H<-c(1, 2, 3, 4)
 #' d<-desla(X, y, H)
 #' @references
@@ -281,9 +281,9 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
 #' \item{\code{Thetahat}}{matrix (row vector) calculated from the nodewise regression at horizon 0, which is re-used at later horizons}
 #' \item{\code{betahats}}{list of matrices (column vectors), giving the initial lasso estimate at each horizon}
 #' @examples
-#' X<-matrix(rnorm(80*80), nrow=80)
-#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(80)
-#' s<-matrix(c(rep(1,40),rep(0,80),rep(1,40)), ncol=2, dimnames = list(NULL, c("A","B")))
+#' X<-matrix(rnorm(50*50), nrow=50)
+#' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(50)
+#' s<-matrix(c(rep(1,25),rep(0,50),rep(1,25)), ncol=2, dimnames = list(NULL, c("A","B")))
 #' h<-HDLP(x=X[,4], y=y, q=X[,-4], state_variables=s, hmax=5, lags=1)
 #' plot(h)
 #' @references

@@ -129,8 +129,8 @@ Returns a list with the following elements: \cr
 Calculates the desparsified lasso as originally introduced in \insertCite{vandeGeer14;textual}{desla}, and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in \insertCite{adamek2020lasso;textual}{desla}.
 }
 \examples{
-X<-matrix(rnorm(100*100), nrow=100)
-y<-X[,1:4] \%*\% c(1, 2, 3, 4) + rnorm(100)
+X<-matrix(rnorm(50*50), nrow=50)
+y<-X[,1:4] \%*\% c(1, 2, 3, 4) + rnorm(50)
 H<-c(1, 2, 3, 4)
 d<-desla(X, y, H)
 }
