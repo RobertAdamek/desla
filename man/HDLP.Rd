@@ -72,9 +72,9 @@ Calculates impulse responses with local projections, using the desla function to
 The input to \code{state_variables} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
 }
 \examples{
-X<-matrix(rnorm(100*100), nrow=100)
-y<-X[,1:4] \%*\% c(1, 2, 3, 4) + rnorm(100)
-s<-matrix(c(rep(1,50),rep(0,100),rep(1,50)), ncol=2, dimnames = list(NULL, c("A","B")))
+X<-matrix(rnorm(80*80), nrow=80)
+y<-X[,1:4] \%*\% c(1, 2, 3, 4) + rnorm(80)
+s<-matrix(c(rep(1,40),rep(0,80),rep(1,40)), ncol=2, dimnames = list(NULL, c("A","B")))
 h<-HDLP(x=X[,4], y=y, q=X[,-4], state_variables=s, hmax=5, lags=1)
 plot(h)
 }
