@@ -89,7 +89,11 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
     }
 
     df <- data.frame(y, X)
-    X <- stats::model.matrix(y ~ ., df)[, -1] # Remove the intercept
+    if (demean) {
+      X <- stats::model.matrix(y ~ ., df)[, -1] # Remove the intercept
+    } else {
+      X <- stats::model.matrix(y ~ . -1, df) # Do not include the intercept
+    }
     Xnames1 <- colnames(X)
     H1 <- NULL
     for (i in 1:length(H)) {
@@ -101,6 +105,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
     }
     colnames(X) <- Xnames1
     H <- H1
+    Hnames <- Xnames1[H]
   }
   if (is.numeric(H)) {
     H=H-1 #turns indexes into C++ format
@@ -255,13 +260,13 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
   colnames(PDLI$inference$intervals_unscaled)=CInames
   H=H+1 #turns indexes back into R format
   rownames(PDLI$bhat_1)=H
-  rownames(PDLI$bhat_1_unscaled)=H
-  rownames(PDLI$inference$intervals)=H
-  rownames(PDLI$inference$intervals_unscaled)=H
+  rownames(PDLI$bhat_1_unscaled)=Hnames
+  rownames(PDLI$inference$intervals)=Hnames
+  rownames(PDLI$inference$intervals_unscaled)=Hnames
   rownames(PDLI$inference$chi2_quantiles)=alphas
-  rownames(PDLI$nw$grids)=H
-  rownames(PDLI$nw$lambdas)=H
-  rownames(PDLI$nw$nonzeros)=H
+  rownames(PDLI$nw$grids)=Hnames
+  rownames(PDLI$nw$lambdas)=Hnames
+  rownames(PDLI$nw$nonzeros)=Hnames
   if(!is.null(manual_Thetahat_) && !is.null(manual_Upsilonhat_inv_) && !is.null(manual_nw_residuals_)){ #if all nodewise parts are provided, then the nodewise regressions wont be run
     init_nonzero_pos<-NULL
     nw_nonzero_poss<-NULL
@@ -271,7 +276,7 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
     for(i in 1:length(nw_nonzero_poss)){
       nw_nonzero_poss[[i]]<-nw_nonzero_poss[[i]]+1 #puts the indexes in R format
     }
-    names(nw_nonzero_poss)=H
+    names(nw_nonzero_poss)=Hnames
   }
   out <- list(bhat_scaled=PDLI$bhat_1,
               bhat=PDLI$bhat_1_unscaled,
@@ -293,7 +298,9 @@ desla=function(X, y, H, init_partial=NA, nw_partials=NA, demean=TRUE, scale=TRUE
               init_nonzero=PDLI$init$nonzero,
               nw_nonzeros=PDLI$nw$nonzeros,
               init_nonzero_pos=init_nonzero_pos,
-              nw_nonzero_poss=nw_nonzero_poss)
+              nw_nonzero_poss=nw_nonzero_poss,
+              call = match.call(),
+              varnames = colnames(X))
   class(out) <- "desla"
   return(out)
 }
@@ -554,7 +561,6 @@ create_state_dummies <- function(x) {
 #' @description Creates state dummies from matrix-like objects
 #' @param x Matrix or data frame where each column represents a state variable.
 #' @return A matrix where each column is a binary indicator for one state.
-#' @export
 #' @keywords internal
 create_state_dummies_from_datamatrix <- function(x) {
   # In this case each column is treated as a categorical variable that indicates the
@@ -600,7 +606,6 @@ create_state_dummies_from_datamatrix <- function(x) {
 #' @param x Vector representing the state variable.
 #' @param varname Name of the state variable.
 #' @return A matrix where each column is a binary indicator for one state.
-#' @export
 #' @keywords internal
 create_state_dummies_from_vector <- function(x, varname = "StateVar") {
   # x is treated as a categorical variable that indicates the states by its unique entries.
@@ -617,4 +622,155 @@ create_state_dummies_from_vector <- function(x, varname = "StateVar") {
   d <- stats::model.matrix(~ factor_i - 1, data.frame(factor_i))
   colnames(d) <- paste0(varname, ":", levels(factor_i))
   return(d)
+}
+
+#' Extract coefficients
+#' @inheritParams confint.desla
+#' @param scaled return the coefficients for the scaled variables (as used in the estimation)
+#' if \code{TRUE} or the re-scaled coefficients for the original variables if \code{FALSE}
+#' (default).
+#' @export
+#' @keywords internal
+coef.desla <- function(object, scaled = FALSE, ...) {
+  if (scaled) {
+    cf <- c(object$bhat_scaled)
+    coefnames <- rownames(object$bhat_scaled)
+  } else {
+    cf <- c(object$bhat)
+    coefnames <- rownames(object$bhat)
+  }
+  names(cf) <- coefnames
+  cf
+}
+
+#' Confidence intervals for desla objects
+#' @param object a \code{desla} object.
+#' @param parm which parameters is the confidence interval needed for.
+#' @param level confidence level(s).
+#' @param ... additional arguments (ignored).
+#' @export
+#' @keywords internal
+confint.desla <- function (object, parm, level = 0.95, ...)
+{
+  cf <- coef.desla(object)
+  if (missing(parm)) {
+    parm <- names(cf)
+  } else if (is.numeric(parm)) {
+    parm <- names(cf)[parm]
+  }
+  p <- c((1 - level)/2, 1 - (1 - rev(level))/2)
+  pc_header <- paste0(format(100 * p, trim = TRUE, digits = 3), " %")
+  z <- stats::qnorm(p)
+  ci <- matrix(NA, nrow = length(parm), ncol = length(p))
+  colnames(ci) <- pc_header
+  rownames(ci) = parm
+
+  cnames <- colnames(object$intervals)
+  lvl <- as.numeric(substr(cnames[1], 7, nchar(cnames[1])))
+  se <- c(cf - object$intervals[, 1]) / stats::qnorm(1 - lvl/2)
+  names(se) <- names(cf)
+
+  ci[] <- cf[parm] + se[parm] %o% z
+  ci
+}
+
+#' Summary of desla output
+#' @inheritParams confint.desla
+#' @export
+#' @keywords internal
+summary.desla <- function(object, ...) {
+  out <- list()
+  cf <- coef(object)
+  varnames <- names(cf)
+  cnames <- colnames(object$intervals)
+  lvl <- as.numeric(substr(cnames[1], 7, nchar(cnames[1])))
+  se <- c(cf - object$intervals[, 1]) / stats::qnorm(1 - lvl/2)
+  t_val <- cf / se
+  p_val <- 2 * stats::pnorm(abs(t_val), lower.tail = FALSE)
+  out$coefficients <- cbind(Estimate = cf, "Std. Error" = se, "t value" = t_val,
+                            "Pr(>|t|)" = p_val)
+  rownames(out$coefficients) <- varnames
+
+  out$lambdas <- c(object$init_lambda, object$nw_lambdas)
+  names(out$lambdas) <- c("Initial regression", varnames)
+
+  if (length(object$init_nonzero_pos) == 0) {
+    varsel <- "none"
+  } else {
+    varsel <- object$varnames[object$init_nonzero_pos]
+  }
+  out$selected <- list("Initial regression" = varsel)
+  for (i in 1:length(varnames)) {
+    if (length(object$nw_nonzero_pos[[i]]) == 0) {
+      varsel <- "none"
+    } else {
+      varsel <- object$varnames[object$nw_nonzero_pos]
+    }
+    out$selected[[varnames[i]]] <- varsel
+  }
+
+  out$call <- object$call
+  class(out) <- "summary.desla"
+  out
+}
+
+#' Print desla summary output
+#' @param x a \code{desla} object.
+#' @param digits digits.
+#' @param signif.stars show stars of significance.
+#' @param show_selected upper bound for which to show the names of selected variables in the
+#' lasso regressions (default is 10)
+#' @inheritParams confint.desla
+#' @export
+#' @keywords internal
+print.summary.desla <- function (x, digits = max(3L, getOption("digits") - 3L),
+                                 signif.stars = getOption("show.signif.stars"),
+                                 show_selected = 10, ...) {
+  cat("\nCall:\n", paste(deparse(x$call), sep = "\n", collapse = "\n"), "\n\n", sep = "")
+
+  cat("\nCoefficients:\n")
+  stats::printCoefmat(x$coefficients, digits = digits, signif.stars = signif.stars,
+                       a.print = "NA", ...)
+
+  lam <- data.frame(x$lambdas)
+  colnames(lam) <- NULL
+  cat("\nSelected lambdas:\n")
+  print(lam, digits = digits)
+
+  vars <- data.frame(selected = rep("", length(x$selected)))
+  rownames(vars) <- names(x$selected)
+  long <- FALSE
+  text_long <- paste0("(Names not shown when more than ",
+                      show_selected, " are selected.\n",
+                      "Use print() with argument 'show_selected' set equal to desired ",
+                      "number of names.)")
+  for (i in 1:length(x$selected)) {
+    if (length(x$selected[[i]]) > show_selected) {
+      long <- TRUE
+      vars$selected[i] <- paste0(length(x$selected[[i]]), " variables")
+    } else {
+      vars$selected[i] <- paste0(x$selected[[i]], collapse = ", ")
+    }
+  }
+  colnames(vars) <- NULL
+  cat("\nSelected variables:\n")
+  print(vars)
+  if (long) {cat(text_long)}
+  invisible(x)
+}
+
+#' Print desla output
+#' @param x a \code{desla} object.
+#' @param digits digits.
+#' @param signif.stars show stars of significance.
+#' @param show_selected upper bound for which to show the names of selected variables in the
+#' lasso regressions (default is 10)
+#' @inheritParams confint.desla
+#' @export
+#' @keywords internal
+print.desla <- function (x, digits = max(3L, getOption("digits") - 3L),
+                         signif.stars = getOption("show.signif.stars"),
+                         show_selected = 10, ...) {
+  y <- summary(x, ...)
+  print(y, show_selected = show_selected, ...)
 }
