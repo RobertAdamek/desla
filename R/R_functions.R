@@ -701,10 +701,10 @@ summary.desla <- function(object, ...) {
   }
   out$selected <- list("Initial regression" = varsel)
   for (i in 1:length(varnames)) {
-    if (length(object$nw_nonzero_pos[[i]]) == 0) {
+    if (length(object$nw_nonzero_poss[[i]]) == 0) {
       varsel <- "none"
     } else {
-      varsel <- object$varnames[object$nw_nonzero_pos]
+      varsel <- object$varnames[object$nw_nonzero_poss[[i]]]
     }
     out$selected[[varnames[i]]] <- varsel
   }

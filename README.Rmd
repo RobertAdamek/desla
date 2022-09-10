@@ -14,8 +14,8 @@ knitr::opts_chunk$set(
 
 # desla: Desparsified Lasso inference for Time Series
 <!-- badges: start -->
-[![CRAN_Version_Badge](http://www.r-pkg.org/badges/version/bootUR)](https://cran.r-project.org/package=desla)
-[![CRAN_Downloads_Badge](https://cranlogs.r-pkg.org/badges/grand-total/bootUR)](https://cran.r-project.org/package=desla)
+[![CRAN_Version_Badge](http://www.r-pkg.org/badges/version/desla)](https://cran.r-project.org/package=desla)
+[![CRAN_Downloads_Badge](https://cranlogs.r-pkg.org/badges/grand-total/desla)](https://cran.r-project.org/package=desla)
 <!-- badges: end -->
 
 ## Installation

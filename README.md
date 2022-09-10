@@ -5,8 +5,8 @@
 
 <!-- badges: start -->
 
-[![CRAN_Version_Badge](http://www.r-pkg.org/badges/version/bootUR)](https://cran.r-project.org/package=desla)
-[![CRAN_Downloads_Badge](https://cranlogs.r-pkg.org/badges/grand-total/bootUR)](https://cran.r-project.org/package=desla)
+[![CRAN_Version_Badge](http://www.r-pkg.org/badges/version/desla)](https://cran.r-project.org/package=desla)
+[![CRAN_Downloads_Badge](https://cranlogs.r-pkg.org/badges/grand-total/desla)](https://cran.r-project.org/package=desla)
 <!-- badges: end -->
 
 ## Installation
@@ -81,7 +81,7 @@ summary(d)
 #> 
 #> Coefficients:
 #>    Estimate Std. Error t value Pr(>|t|)    
-#> X1   1.0769     0.1284   8.385   <2e-16 ***
+#> X1   1.0771     0.1284   8.386   <2e-16 ***
 #> X2   1.9760     0.1367  14.457   <2e-16 ***
 #> X3   2.9460     0.1306  22.555   <2e-16 ***
 #> ---
@@ -90,14 +90,14 @@ summary(d)
 #> Selected lambdas:
 #>                           
 #> Initial regression 0.06529
-#> X1                 0.29314
-#> X2                 0.28772
-#> X3                 0.28772
+#> X1                 0.28745
+#> X2                 0.28676
+#> X3                 0.28884
 #> 
 #> Selected variables:
 #>                                  
 #> Initial regression X1, X2, X3, X4
-#> X1                           none
+#> X1                            X90
 #> X2                           none
 #> X3                           none
 ```
