@@ -47,7 +47,7 @@ desla(
 
 \item{init_partial}{(optional) boolean, true if you want the initial lasso to be partially penalized (false by default)}
 
-\item{nw_partials}{(optional) boolean vector with the dimension of \code{H}, trues if you want the nodewise regressions to be partially penalized (all false by default)}
+\item{nw_partials}{(optional) boolean vector with the dimension of \code{H}, true if you want the nodewise regressions to be partially penalized (all false by default)}
 
 \item{demean}{(optional) boolean, true if \code{X} and \code{y} should be demeaned before the desparsified lasso is calculated. This is recommended, due to the assumptions for the method (true by default)}
 

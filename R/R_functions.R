@@ -680,7 +680,7 @@ confint.desla <- function (object, parm, level = 0.95, ...)
 #' @keywords internal
 summary.desla <- function(object, ...) {
   out <- list()
-  cf <- coef(object)
+  cf <- coef.desla(object)
   varnames <- names(cf)
   cnames <- colnames(object$intervals)
   lvl <- as.numeric(substr(cnames[1], 7, nchar(cnames[1])))
