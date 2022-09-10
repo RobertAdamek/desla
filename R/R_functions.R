@@ -7,7 +7,7 @@
 #' @param demean (optional) boolean, true if \code{X} and \code{y} should be demeaned before the desparsified lasso is calculated. This is recommended, due to the assumptions for the method (true by default)
 #' @param scale (optional) boolean, true if \code{X} and \code{y} should be scaled by the column-wise standard deviations. Recommended for lasso based methods in general, since the penalty is scale-sensitive (true by default)
 #' @param init_partial (optional) boolean, true if you want the initial lasso to be partially penalized (false by default)
-#' @param nw_partials (optional) boolean vector with the dimension of \code{H}, trues if you want the nodewise regressions to be partially penalized (all false by default)
+#' @param nw_partials (optional) boolean vector with the dimension of \code{H}, true if you want the nodewise regressions to be partially penalized (all false by default)
 #' @param gridsize (optional) integer, how many different lambdas there should be in both initial and nodewise grids (100 by default)
 #' @param init_grid (optional) vector, containing user specified initial grid
 #' @param nw_grids (optional) matrix with number of rows the size of \code{H}, rows containing user specified grids for the nodewise regressions
