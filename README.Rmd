@@ -62,9 +62,11 @@ The point estimates are accessible via the output slot `bhat` or the `coef()` fu
 
 ### The function `HDLP()`
 The second key function of the package is the `HDLP()` function which implements the high-dimensional local projections detailed in Adamek et al. (2022b). As an example, consider the response of `y` to a shock in the fourth predictor variable, and imagine that:
+
 * We classify the first three predictor variables as "slow moving" and enter the equation contemporaneously (ordered before the fourth variable);
+
 * The 5th up to 10th variables are classified as "fast moving" and only enter with a lag (thus ordered after the fourth variable).
-Then the follow lines of code obtain the impulse responses with two lags included, up to a maximum horizon of 5. By applying the plot function to the output of the HDLP function, the corresponding impulse response function can be visualized.
+Then the following lines of code obtain the impulse responses with two lags included, up to a maximum horizon of 5. By applying the plot function to the output of the HDLP function, the corresponding impulse response function can be visualized.
 ```{r hdlp}
 h<-HDLP(x=X[,4], y=y, q=X[,1:3], r = X[,6:10], hmax=5, lags=2)
 plot(h)

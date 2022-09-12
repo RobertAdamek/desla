@@ -81,23 +81,23 @@ summary(d)
 #> 
 #> Coefficients:
 #>    Estimate Std. Error t value Pr(>|t|)    
-#> X1   1.0771     0.1284   8.386   <2e-16 ***
-#> X2   1.9760     0.1367  14.457   <2e-16 ***
-#> X3   2.9460     0.1306  22.555   <2e-16 ***
+#> X1   1.0787     0.1310   8.236   <2e-16 ***
+#> X2   1.9750     0.1392  14.185   <2e-16 ***
+#> X3   2.9454     0.1324  22.247   <2e-16 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #> Selected lambdas:
 #>                           
-#> Initial regression 0.06529
-#> X1                 0.28745
-#> X2                 0.28676
-#> X3                 0.28884
+#> Initial regression 0.06735
+#> X1                 0.29252
+#> X2                 0.28642
+#> X3                 0.27889
 #> 
 #> Selected variables:
 #>                                  
 #> Initial regression X1, X2, X3, X4
-#> X1                            X90
+#> X1                           none
 #> X2                           none
 #> X3                           none
 ```
@@ -112,14 +112,18 @@ other details, see the function documentation with the command `?desla`.
 The second key function of the package is the `HDLP()` function which
 implements the high-dimensional local projections detailed in Adamek et
 al. (2022b). As an example, consider the response of `y` to a shock in
-the fourth predictor variable, and imagine that: \* We classify the
-first three predictor variables as “slow moving” and enter the equation
-contemporaneously (ordered before the fourth variable); \* The 5th up to
-10th variables are classified as “fast moving” and only enter with a lag
-(thus ordered after the fourth variable). Then the follow lines of code
-obtain the impulse responses with two lags included, up to a maximum
-horizon of 5. By applying the plot function to the output of the HDLP
-function, the corresponding impulse response function can be visualized.
+the fourth predictor variable, and imagine that:
+
+-   We classify the first three predictor variables as “slow moving” and
+    enter the equation contemporaneously (ordered before the fourth
+    variable);
+
+-   The 5th up to 10th variables are classified as “fast moving” and
+    only enter with a lag (thus ordered after the fourth variable). Then
+    the following lines of code obtain the impulse responses with two
+    lags included, up to a maximum horizon of 5. By applying the plot
+    function to the output of the HDLP function, the corresponding
+    impulse response function can be visualized.
 
 ``` r
 h<-HDLP(x=X[,4], y=y, q=X[,1:3], r = X[,6:10], hmax=5, lags=2)

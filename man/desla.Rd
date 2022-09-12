@@ -8,78 +8,35 @@ desla(
   X,
   y,
   H,
-  init_partial = NA,
-  nw_partials = NA,
-  demean = TRUE,
-  scale = TRUE,
-  gridsize = 100,
-  init_grid = NA,
-  nw_grids = NA,
-  init_selection_type = NA,
-  nw_selection_types = NA,
-  init_nonzero_limit = NA,
-  nw_nonzero_limits = NA,
-  init_opt_threshold = NA,
-  nw_opt_thresholds = NA,
-  init_opt_type = NA,
-  nw_opt_types = NA,
-  LRVtrunc = 0,
-  T_multiplier = 0,
-  alphas = c(0.01, 0.05, 0.1),
+  alphas = 0.05,
   R = NA,
   q = NA,
   PIconstant = 0.8,
   PIprobability = 0.05,
+  gridsize = 100,
+  demean = TRUE,
+  scale = TRUE,
   progress_bar = TRUE,
   parallel = TRUE,
   threads = NULL,
-  manual_Thetahat_ = NULL,
-  manual_Upsilonhat_inv_ = NULL,
-  manual_nw_residuals_ = NULL
+  init_partial = NA,
+  nw_partials = NA,
+  init_grid = NA,
+  nw_grids = NA,
+  init_selection_type = NA,
+  nw_selection_types = NA,
+  LRVtrunc = 0,
+  T_multiplier = 0
 )
 }
 \arguments{
-\item{X}{\code{T_}x\code{N} regressor matrix}
+\item{X}{\code{T_} x \code{N} regressor matrix}
 
-\item{y}{\code{T_}x1 dependent variable vector}
+\item{y}{\code{T_} x 1 dependent variable vector}
 
 \item{H}{indexes of relevant regressors}
 
-\item{init_partial}{(optional) boolean, true if you want the initial lasso to be partially penalized (false by default)}
-
-\item{nw_partials}{(optional) boolean vector with the dimension of \code{H}, true if you want the nodewise regressions to be partially penalized (all false by default)}
-
-\item{demean}{(optional) boolean, true if \code{X} and \code{y} should be demeaned before the desparsified lasso is calculated. This is recommended, due to the assumptions for the method (true by default)}
-
-\item{scale}{(optional) boolean, true if \code{X} and \code{y} should be scaled by the column-wise standard deviations. Recommended for lasso based methods in general, since the penalty is scale-sensitive (true by default)}
-
-\item{gridsize}{(optional) integer, how many different lambdas there should be in both initial and nodewise grids (100 by default)}
-
-\item{init_grid}{(optional) vector, containing user specified initial grid}
-
-\item{nw_grids}{(optional) matrix with number of rows the size of \code{H}, rows containing user specified grids for the nodewise regressions}
-
-\item{init_selection_type}{(optional) integer, how should lambda be selected in the initial regression, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
-
-\item{nw_selection_types}{(optional) integer vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (all 4s by default)}
-
-\item{init_nonzero_limit}{(optional) number controlling the maximum number of nonzeros that can be selected in the initial regression (0.5 by default, meaning no more than 0.5*T_ regressors can have nonzero estimates)}
-
-\item{nw_nonzero_limits}{(optional) vector with the dimension of \code{H}, controlling the maximum number of nonzeros that can be selected in the nodewise regressions (0.5s by default)}
-
-\item{init_opt_threshold}{(optional) optimization threshold for the coordinate descent algorithm in the initial regression (10^(-4) by default)}
-
-\item{nw_opt_thresholds}{(optional) vector with the dimension of \code{H}, optimization thresholds for the coordinate descent algorithm in the nodewise lasso regression (10^(-4)s by default)}
-
-\item{init_opt_type}{(optional) integer, which type of coordinate descent algorithm should be used in the initial regression, 1=naive, 2=covariance, 3=adaptive (3 by default)}
-
-\item{nw_opt_types}{(optional)integer vector with the dimension of \code{H}, which type of coordinate descent algorithm should be used in the nodewise regressions, 1=naive, 2=covariance, 3=adaptive (3s by default)}
-
-\item{LRVtrunc}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T_}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{T_multiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{LRVtrunc}=0 by default)}
-
-\item{T_multiplier}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T_}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{T_multiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{T_multiplier}=0 by default)}
-
-\item{alphas}{(optional) vector of significance levels (c(0.01,0.05,0.1) by default)}
+\item{alphas}{(optional) vector of significance levels (0.05 by default)}
 
 \item{R}{(optional) matrix with number of columns the dimension of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (identity matrix as default)}
 
@@ -89,25 +46,40 @@ desla(
 
 \item{PIprobability}{(optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
 
+\item{gridsize}{(optional) integer, how many different lambdas there should be in both initial and nodewise grids (100 by default)}
+
+\item{demean}{(optional) boolean, true if \code{X} and \code{y} should be demeaned before the desparsified lasso is calculated. This is recommended, due to the assumptions for the method (true by default)}
+
+\item{scale}{(optional) boolean, true if \code{X} and \code{y} should be scaled by the column-wise standard deviations. Recommended for lasso based methods in general, since the penalty is scale-sensitive (true by default)}
+
 \item{progress_bar}{(optional) boolean, displays a progress bar while running if true, tracking the progress of estimating the nodewise regressions (TRUE by default)}
 
 \item{parallel}{boolean, whether parallel computing should be used (TRUE by default)}
 
 \item{threads}{(optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE} (default is to use all but two)}
 
-\item{manual_Thetahat_}{(optional) matrix with rows the size of H and columns the number of regressors. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)}
+\item{init_partial}{(optional) boolean, true if you want the initial lasso to be partially penalized (false by default)}
 
-\item{manual_Upsilonhat_inv_}{(optional) matrix with rows and columns the size of H. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL by default)}
+\item{nw_partials}{(optional) boolean vector with the dimension of \code{H}, true if you want the nodewise regressions to be partially penalized (all false by default)}
 
-\item{manual_nw_residuals_}{(optional) matrix with rows equal to the sample size and columns the size of H, containing the residuals from the nodewise regressions. Can be obtained from earlier executions of the function to avoid unnecessary calculations of the nodewise regressions (NULL as default)}
+\item{init_grid}{(optional) vector, containing user specified initial grid}
+
+\item{nw_grids}{(optional) matrix with number of rows the size of \code{H}, rows containing user specified grids for the nodewise regressions}
+
+\item{init_selection_type}{(optional) integer, how should lambda be selected in the initial regression, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
+
+\item{nw_selection_types}{(optional) integer vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (all 4s by default)}
+
+\item{LRVtrunc}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T_}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{T_multiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{LRVtrunc}=0 by default)}
+
+\item{T_multiplier}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T_}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{T_multiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{T_multiplier}=0 by default)}
 }
 \value{
 Returns a list with the following elements: \cr
-\item{\code{bhat_scaled}}{desparsified lasso estimates for the parameters indexed by \code{H}. These estimates are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{bhat}}
 \item{\code{bhat}}{desparsified lasso estimates for the parameters indexed by \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
-\item{\code{intervals_scaled}}{matrix containing the confidence intervals for parameters indexed in \code{H}, for significance levels given in \code{alphas}. These are based on data that is potentially standardized, for estimates that are brought back into the original scale of X, see \code{intervals}}
-\item{\code{intervals}}{matrix containing the confidence intervals for parameters indexed in \code{H},unscaled to be in the original scale of \code{y} and \code{X}}
-\item{\code{joint_chi2_stat}}{test statistic for hull hypothesis \code{R}*beta=\code{q}, asymptotically chi squared distributed}
+\item{\code{standard_errors}}{standard errors of the estimates for variables indexed by \code{H}}
+\item{\code{intervals}}{matrix containing the confidence intervals for parameters indexed in \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
+\item{\code{joint_chi2_stat}}{test statistic for hull hypothesis \code{R}*beta=\code{q}, asymptotically chi squared distributed. At default values of \code{R} and \code{q}, this tests the joint significance of all variables indexed by \code{H}}
 \item{\code{chi2_critical_values}}{critical values of the chi squared distribution with degrees of freedom corresponding to the joint test \code{R}*beta=\code{q}, for significance levels given in \code{alphas}}
 \item{\code{betahat}}{lasso estimates from the initial regression of \code{y} on \code{X}}
 \item{\code{Gammahat}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
@@ -120,10 +92,10 @@ Returns a list with the following elements: \cr
 \item{\code{nw_grids}}{redundant output, returning the function input \code{nw_grids}}
 \item{\code{init_lambda}}{value of lambda that was selected in the initial lasso regression}
 \item{\code{nw_lambdas}}{values of lambdas that were selected in the nodewise lasso regressions}
-\item{\code{init_nonzero}}{number on nonzero parameters in the initial lasso regression}
-\item{\code{nw_nonzeros}}{vector of nonzero parameters in the nodewise lasso regressions}
 \item{\code{init_nonzero_pos}}{vector of indexes of the nonzero parameters in the initial lasso}
 \item{\code{nw_nonzero_poss}}{list of vectors for each nodewise regression, giving the indexes of nonzero parameters in the nodewise regressions}
+\item{\code{z_stat_Rq}}{vector of z-statistics associated with hypotheses of the form \code{R x beta = q}, unscaled to be in the original scale of \code{y} and \code{X}. This output is only given when either \code{R} or \code{q} are supplied}
+\item{\code{intervals_Rq}}{matrix containing the confidence intervals for hypotheses of the form \code{R x beta = q}, unscaled to be in the original scale of \code{y} and \code{X}. This output is only given when either \code{R} or \code{q} are supplied}
 }
 \description{
 Calculates the desparsified lasso as originally introduced in \insertCite{vandeGeer14;textual}{desla}, and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in \insertCite{adamek2020lasso;textual}{desla}.

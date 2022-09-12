@@ -119,9 +119,13 @@ struct partial_desparsified_lasso_inference_output{
   arma::mat Omegahat;
   arma::mat R;
   arma::vec q;
+  arma::vec std_errors_individual_vars;
   arma::vec z_quantiles;
   arma::mat intervals;
   arma::mat intervals_unscaled;
+  arma::mat intervals_Rq;
+  arma::mat intervals_Rq_unscaled;
+  arma::vec z_stats_Rq;
   double joint_chi2_stat;
   arma::vec chi2_quantiles;
   arma::uvec init_nonzero_pos;
@@ -1163,27 +1167,47 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   arma::vec bhat_1_unscaled=unscale(s, PDL.bhat_1, H, demean, scale);
   arma::mat Omegahat=LRVestimator(PDL.init_residual, PDL.nw_residuals, PDL.N, PDL.T_, PDL.h, LRVtrunc, T_multiplier);
   arma::vec z_quantiles=qnorm(alphas/2.0,0.0,1.0,false,false);
-
   unsigned int P=R.n_rows;
   arma::vec chi2_quantiles=qchisq(alphas,P,false,false);
   arma::mat covariance=PDL.Upsilonhat_inv*Omegahat*PDL.Upsilonhat_inv;
   arma::vec Rbhat_1=R*PDL.bhat_1;
   arma::vec Rbhat_1_unscaled=R*bhat_1_unscaled;
+  arma::vec std_errors_individual_vars(PDL.h);
+  for(unsigned int i=0; i<PDL.h; i++){
+    std_errors_individual_vars(i)=sqrt( as_scalar(covariance(i,i))/double(PDL.T_) );
+  }
+  arma::vec std_errors_individual_vars_unscale=unscale(s, std_errors_individual_vars, H, demean, scale);
   arma::vec std_errors(P);
   for(unsigned int p=0; p<P; p++){
     std_errors(p)=sqrt( as_scalar(R.row(p)*covariance*(R.row(p)).t())/double(PDL.T_) );
   }
-  arma::mat intervals(P, 2*alphas.length()+1);
-  intervals.col(alphas.length())=Rbhat_1;
-  for(unsigned int p=0; p<P; p++){
-    for(int j=0; j<alphas.length(); j++){
-      intervals(p,j)=Rbhat_1(p)-z_quantiles(j)*std_errors(p);
-      intervals(p, 2*alphas.length()-j)=Rbhat_1(p)+z_quantiles(j)*std_errors(p);
+  arma::mat intervals(PDL.h, 2*alphas.length()+1); // intervals for individual variables
+  intervals.col(alphas.length())=PDL.bhat_1;
+  for(unsigned int p=0; p<PDL.h; p++){
+    for(unsigned int j=0; j<alphas.length(); j++){
+      intervals(p,j)=PDL.bhat_1(p)-z_quantiles(j)*std_errors_individual_vars(p);
+      intervals(p, 2*alphas.length()-j)=PDL.bhat_1(p)+z_quantiles(j)*std_errors_individual_vars(p);
     }
   }
-  arma::mat intervals_unscaled=intervals;
+  arma::mat intervals_unscaled=intervals; //unscaling works with just the normal unscale function
   for(int j=0; j<2*alphas.length()+1; j++){
     intervals_unscaled.col(j)=unscale(s, intervals.col(j), H, demean, scale);
+  }
+  arma::mat intervals_Rq(P, 2*alphas.length()+1); // intervals for the hypotheses tested with R*beta=q
+  intervals_Rq.col(alphas.length())=Rbhat_1;
+  for(unsigned int p=0; p<P; p++){
+    for(unsigned int j=0; j<alphas.length(); j++){
+      intervals_Rq(p,j)=Rbhat_1(p)-z_quantiles(j)*std_errors(p);
+      intervals_Rq(p, 2*alphas.length()-j)=Rbhat_1(p)+z_quantiles(j)*std_errors(p);
+    }
+  }
+  arma::mat intervals_Rq_unscaled=intervals_Rq; //the hypothesis intervals need to be unscaled differently
+  intervals_Rq_unscaled.col(alphas.length())=Rbhat_1_unscaled;
+  for(unsigned int p=0; p<P; p++){
+    for(unsigned int j=0; j<alphas.length(); j++){
+      intervals_Rq_unscaled(p,j)=Rbhat_1_unscaled(p)-z_quantiles(j)*std_errors(p)*Rbhat_1_unscaled(p)/Rbhat_1(p);
+      intervals_Rq_unscaled(p, 2*alphas.length()-j)=Rbhat_1_unscaled(p)+z_quantiles(j)*std_errors(p)*Rbhat_1_unscaled(p)/Rbhat_1(p);
+    }
   }
   //For the chi2 statistic, the Rbhat-q component should be calculated with a properly scaled q, such that the scale of Rbhat matches the scale of the hypothesized value
   arma::vec q_scaled(P);
@@ -1192,8 +1216,11 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   }
   double joint_chi2_stat=as_scalar( (Rbhat_1-q_scaled).t()*inv_sympd(R*covariance*R.t()/double(PDL.T_))*(Rbhat_1-q_scaled) );
 
+  arma::vec z_stats_Rq(P);
+  for(unsigned int p=0; p<P; p++){
+    z_stats_Rq(p)=(Rbhat_1(p)-q_scaled(p))/std_errors(p);
+  }
   partial_desparsified_lasso_inference_output ret;
-
   ret.init_partial=PDL.init_partial;
   //ret.nw_partials=PDL.nw_partials;
   ret.N=PDL.N;
@@ -1240,15 +1267,20 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   ret.Omegahat=Omegahat;
   ret.R=R;
   ret.q=q;
+  ret.std_errors_individual_vars=std_errors_individual_vars_unscale;
   ret.z_quantiles=z_quantiles;
   ret.intervals=intervals;
   ret.intervals_unscaled=intervals_unscaled;
+  ret.intervals_Rq=intervals_Rq;
+  ret.intervals_Rq_unscaled=intervals_Rq_unscaled;
+  ret.z_stats_Rq=z_stats_Rq;
   ret.joint_chi2_stat=joint_chi2_stat;
   ret.chi2_quantiles=chi2_quantiles;
   ret.init_nonzero_pos=PDL.init_nonzero_pos;
   ret.nw_nonzero_poss=PDL.nw_nonzero_poss;
   return ret;
 }
+
 arma::mat na_matrix(unsigned int rows, unsigned int cols){
   NumericMatrix m(rows,cols) ;
   std::fill( m.begin(), m.end(), NumericVector::get_na() ) ;
@@ -1731,9 +1763,13 @@ List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::
   List inference=List::create(Named("Omegahat")=PDLI.Omegahat,
                               Named("R")=PDLI.R,
                               Named("q")=PDLI.q,
+                              Named("standard_errors")=PDLI.std_errors_individual_vars,
                               Named("z_quantiles")=PDLI.z_quantiles,
                               Named("intervals")=PDLI.intervals,
                               Named("intervals_unscaled")=PDLI.intervals_unscaled,
+                              Named("intervals_Rq")=PDLI.intervals_Rq,
+                              Named("intervals_Rq_unscaled")=PDLI.intervals_Rq_unscaled,
+                              Named("z_stats_Rq")=PDLI.z_stats_Rq,
                               Named("joint_chi2_stat")=PDLI.joint_chi2_stat,
                               Named("chi2_quantiles")=PDLI.chi2_quantiles
   );
