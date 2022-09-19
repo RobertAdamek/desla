@@ -10,10 +10,6 @@
 \item{object}{a \code{desla} object.}
 
 \item{...}{additional arguments (ignored).}
-
-\item{scaled}{return the coefficients for the scaled variables (as used in the estimation)
-if \code{TRUE} or the re-scaled coefficients for the original variables if \code{FALSE}
-(default).}
 }
 \description{
 Extract coefficients

@@ -9,24 +9,16 @@ desla(
   y,
   H,
   alphas = 0.05,
-  R = NA,
-  q = NA,
-  PIconstant = 0.8,
-  PIprobability = 0.05,
-  gridsize = 100,
+  penalize_H = TRUE,
+  R = NULL,
+  q = NULL,
   demean = TRUE,
   scale = TRUE,
   progress_bar = TRUE,
   parallel = TRUE,
   threads = NULL,
-  init_partial = NA,
-  nw_partials = NA,
-  init_grid = NA,
-  nw_grids = NA,
-  init_selection_type = NA,
-  nw_selection_types = NA,
-  LRVtrunc = 0,
-  T_multiplier = 0
+  PI_constant = NULL,
+  LRV_bandwidth = NULL
 )
 }
 \arguments{
@@ -38,15 +30,11 @@ desla(
 
 \item{alphas}{(optional) vector of significance levels (0.05 by default)}
 
+\item{penalize_H}{(optional) boolean, true if you want the variables in H to be penalized (\code{TRUE} by default)}
+
 \item{R}{(optional) matrix with number of columns the dimension of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (identity matrix as default)}
 
 \item{q}{(optional) vector of size same as the rows of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (zeroes by default)}
-
-\item{PIconstant}{(optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
-
-\item{PIprobability}{(optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
-
-\item{gridsize}{(optional) integer, how many different lambdas there should be in both initial and nodewise grids (100 by default)}
 
 \item{demean}{(optional) boolean, true if \code{X} and \code{y} should be demeaned before the desparsified lasso is calculated. This is recommended, due to the assumptions for the method (true by default)}
 
@@ -58,7 +46,13 @@ desla(
 
 \item{threads}{(optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE} (default is to use all but two)}
 
-\item{init_partial}{(optional) boolean, true if you want the initial lasso to be partially penalized (false by default)}
+\item{PI_constant}{(optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
+
+\item{LRV_bandwidth}{(optional) vector of parameters controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{LRV_bandwidth[1]}*\code{T_}^\code{LRV_bandwidth[2]}). When \code{LRV_bandwidth=NULL}, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (default)}
+
+\item{PI_probability}{(optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
+
+\item{gridsize}{(optional) integer, how many different lambdas there should be in both initial and nodewise grids (100 by default)}
 
 \item{nw_partials}{(optional) boolean vector with the dimension of \code{H}, true if you want the nodewise regressions to be partially penalized (all false by default)}
 
@@ -69,33 +63,18 @@ desla(
 \item{init_selection_type}{(optional) integer, how should lambda be selected in the initial regression, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
 
 \item{nw_selection_types}{(optional) integer vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (all 4s by default)}
-
-\item{LRVtrunc}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T_}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{T_multiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{LRVtrunc}=0 by default)}
-
-\item{T_multiplier}{(optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T_}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{T_multiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{T_multiplier}=0 by default)}
 }
 \value{
 Returns a list with the following elements: \cr
 \item{\code{bhat}}{desparsified lasso estimates for the parameters indexed by \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
 \item{\code{standard_errors}}{standard errors of the estimates for variables indexed by \code{H}}
 \item{\code{intervals}}{matrix containing the confidence intervals for parameters indexed in \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
-\item{\code{joint_chi2_stat}}{test statistic for hull hypothesis \code{R}*beta=\code{q}, asymptotically chi squared distributed. At default values of \code{R} and \code{q}, this tests the joint significance of all variables indexed by \code{H}}
-\item{\code{chi2_critical_values}}{critical values of the chi squared distribution with degrees of freedom corresponding to the joint test \code{R}*beta=\code{q}, for significance levels given in \code{alphas}}
 \item{\code{betahat}}{lasso estimates from the initial regression of \code{y} on \code{X}}
-\item{\code{Gammahat}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
-\item{\code{Upsilonhat_inv}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
-\item{\code{Thetahat}}{approximate inverse of (X'X)/T_, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
-\item{\code{Omegahat}}{long run covariance matrix for the variables indexed by \code{H}, for details see \insertCite{adamek2020lasso;textual}{desla}}
-\item{\code{init_residual}}{vector of residuals from the initial lasso regression}
-\item{\code{nw_residuals}}{matrix of residuals from the nodewise regressions}
-\item{\code{init_grid}}{redundant output, returning the function input \code{init_grid}}
-\item{\code{nw_grids}}{redundant output, returning the function input \code{nw_grids}}
-\item{\code{init_lambda}}{value of lambda that was selected in the initial lasso regression}
-\item{\code{nw_lambdas}}{values of lambdas that were selected in the nodewise lasso regressions}
-\item{\code{init_nonzero_pos}}{vector of indexes of the nonzero parameters in the initial lasso}
-\item{\code{nw_nonzero_poss}}{list of vectors for each nodewise regression, giving the indexes of nonzero parameters in the nodewise regressions}
-\item{\code{z_stat_Rq}}{vector of z-statistics associated with hypotheses of the form \code{R x beta = q}, unscaled to be in the original scale of \code{y} and \code{X}. This output is only given when either \code{R} or \code{q} are supplied}
-\item{\code{intervals_Rq}}{matrix containing the confidence intervals for hypotheses of the form \code{R x beta = q}, unscaled to be in the original scale of \code{y} and \code{X}. This output is only given when either \code{R} or \code{q} are supplied}
+\item{\code{DSL_matrices}}{list containing the matrices \code{Gammahat}, \code{Upsilonhat_inv} and \code{Thetahat} used for calculating the desparsified lasso, as well as \code{Omegahat}, the long run covariance matrix for the variables indexed by \code{H}. For details see \insertCite{adamek2020lasso;textual}{desla}}
+\item{\code{residuals}}{list containing the vector of residuals from the initial lasso regression (\code{init}) and the matrix of residuals from the nodewise regressions (\code{nw})}
+\item{\code{lambdas}}{values of lambda selected in the initial lasso regression (\code{init}) and the nodewise lasso regressions (\code{nw})}
+\item{\code{selected_vars}}{vector of indexes of the nonzero parameters in the initial lasso (\code{init}) and each nodewise regression (\code{nw})}
+\item{\code{wald_test}}{list containing elements for inference on \code{R} beta=\code{q}. \code{joint_test} contains the test statistic for the overall null hypothesis \code{R} beta=\code{q} along with the p-value. At default values of \code{R} and \code{q}, this tests the joint significance of all variables indexed by \code{H}. \code{row_tests} contains the vector of z-statistics and confidence intervals associated with each row of \code{R} beta - \code{q}, unscaled to be in the original scale of \code{y} and \code{X}. This output is only given when either \code{R} or \code{q} are supplied}
 }
 \description{
 Calculates the desparsified lasso as originally introduced in \insertCite{vandeGeer14;textual}{desla}, and provides inference suitable for high-dimensional time series, based on the long run covariance estimator in \insertCite{adamek2020lasso;textual}{desla}.

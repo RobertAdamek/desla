@@ -15,9 +15,8 @@ HDLP(
   hmax = 24,
   lags = 12,
   alphas = 0.05,
-  init_partial = TRUE,
-  selection = 4,
-  PIconstant = 0.8,
+  penalize_x = FALSE,
+  PI_constant = NULL,
   progress_bar = TRUE,
   OLS = FALSE,
   parallel = TRUE,
@@ -45,11 +44,9 @@ HDLP(
 
 \item{alphas}{(optional) vector of significance levels (0.05 by default)}
 
-\item{init_partial}{(optional) boolean, true if the parameter of interest should NOT be penalized (true by default)}
+\item{penalize_x}{(optional) boolean, true if the parameter of interest should be penalized (\code{FALSE} by default)}
 
-\item{selection}{(optional) integer, how should lambda be selected in BOTH the initial and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
-
-\item{PIconstant}{(optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
+\item{PI_constant}{(optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
 
 \item{progress_bar}{(optional) boolean, true if a progress bar should be displayed during execution (true by default)}
 
@@ -58,6 +55,8 @@ HDLP(
 \item{parallel}{boolean, whether parallel computing should be used. Default is TRUE.}
 
 \item{threads}{(optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE}. Default is to use all but two.}
+
+\item{selection}{(optional) integer, how should lambda be selected in BOTH the initial and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
 }
 \value{
 Returns a list with the following elements: \cr

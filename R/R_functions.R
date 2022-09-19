@@ -7,44 +7,32 @@
 #' @param alphas (optional) vector of significance levels (0.05 by default)
 #' @param R (optional) matrix with number of columns the dimension of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (identity matrix as default)
 #' @param q (optional) vector of size same as the rows of \code{H}, used to test the null hypothesis \code{R}*beta=\code{q} (zeroes by default)
-#' @param PIconstant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
-#' @param PIprobability (optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
+#' @param PI_constant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
+#' @param PI_probability (optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
 #' @param gridsize (optional) integer, how many different lambdas there should be in both initial and nodewise grids (100 by default)
 #' @param demean (optional) boolean, true if \code{X} and \code{y} should be demeaned before the desparsified lasso is calculated. This is recommended, due to the assumptions for the method (true by default)
 #' @param scale (optional) boolean, true if \code{X} and \code{y} should be scaled by the column-wise standard deviations. Recommended for lasso based methods in general, since the penalty is scale-sensitive (true by default)
 #' @param progress_bar (optional) boolean, displays a progress bar while running if true, tracking the progress of estimating the nodewise regressions (TRUE by default)
 #' @param parallel boolean, whether parallel computing should be used (TRUE by default)
 #' @param threads (optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE} (default is to use all but two)
-#' @param init_partial (optional) boolean, true if you want the initial lasso to be partially penalized (false by default)
+#' @param penalize_H (optional) boolean, true if you want the variables in H to be penalized (\code{TRUE} by default)
 #' @param nw_partials (optional) boolean vector with the dimension of \code{H}, true if you want the nodewise regressions to be partially penalized (all false by default)
 #' @param init_grid (optional) vector, containing user specified initial grid
 #' @param nw_grids (optional) matrix with number of rows the size of \code{H}, rows containing user specified grids for the nodewise regressions
 #' @param init_selection_type (optional) integer, how should lambda be selected in the initial regression, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)
 #' @param nw_selection_types (optional) integer vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (all 4s by default)
-#' @param LRVtrunc (optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{T_multiplier}*\code{T_}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{T_multiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{LRVtrunc}=0 by default)
-#' @param T_multiplier (optional) parameter controlling the bandwidth \code{Q_T} used in the long run covariance matrix, Q_T=ceil(\code{T_multiplier}*\code{T_}^\code{LRVtrunc}). When \code{LRVtrunc}=\code{T_multiplier}=0, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (\code{T_multiplier}=0 by default)
+#' @param LRV_bandwidth (optional) vector of parameters controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{LRV_bandwidth[1]}*\code{T_}^\code{LRV_bandwidth[2]}). When \code{LRV_bandwidth=NULL}, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (default)
 
 #' @return Returns a list with the following elements: \cr
 #' \item{\code{bhat}}{desparsified lasso estimates for the parameters indexed by \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
 #' \item{\code{standard_errors}}{standard errors of the estimates for variables indexed by \code{H}}
 #' \item{\code{intervals}}{matrix containing the confidence intervals for parameters indexed in \code{H}, unscaled to be in the original scale of \code{y} and \code{X}}
-#' \item{\code{joint_chi2_stat}}{test statistic for hull hypothesis \code{R}*beta=\code{q}, asymptotically chi squared distributed. At default values of \code{R} and \code{q}, this tests the joint significance of all variables indexed by \code{H}}
-#' \item{\code{chi2_critical_values}}{critical values of the chi squared distribution with degrees of freedom corresponding to the joint test \code{R}*beta=\code{q}, for significance levels given in \code{alphas}}
 #' \item{\code{betahat}}{lasso estimates from the initial regression of \code{y} on \code{X}}
-#' \item{\code{Gammahat}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
-#' \item{\code{Upsilonhat_inv}}{matrix used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
-#' \item{\code{Thetahat}}{approximate inverse of (X'X)/T_, used for calculating the desparsified lasso, for details see \insertCite{adamek2020lasso;textual}{desla}}
-#' \item{\code{Omegahat}}{long run covariance matrix for the variables indexed by \code{H}, for details see \insertCite{adamek2020lasso;textual}{desla}}
-#' \item{\code{init_residual}}{vector of residuals from the initial lasso regression}
-#' \item{\code{nw_residuals}}{matrix of residuals from the nodewise regressions}
-#' \item{\code{init_grid}}{redundant output, returning the function input \code{init_grid}}
-#' \item{\code{nw_grids}}{redundant output, returning the function input \code{nw_grids}}
-#' \item{\code{init_lambda}}{value of lambda that was selected in the initial lasso regression}
-#' \item{\code{nw_lambdas}}{values of lambdas that were selected in the nodewise lasso regressions}
-#' \item{\code{init_nonzero_pos}}{vector of indexes of the nonzero parameters in the initial lasso}
-#' \item{\code{nw_nonzero_poss}}{list of vectors for each nodewise regression, giving the indexes of nonzero parameters in the nodewise regressions}
-#' \item{\code{z_stat_Rq}}{vector of z-statistics associated with hypotheses of the form \code{R x beta = q}, unscaled to be in the original scale of \code{y} and \code{X}. This output is only given when either \code{R} or \code{q} are supplied}
-#' \item{\code{intervals_Rq}}{matrix containing the confidence intervals for hypotheses of the form \code{R x beta = q}, unscaled to be in the original scale of \code{y} and \code{X}. This output is only given when either \code{R} or \code{q} are supplied}
+#' \item{\code{DSL_matrices}}{list containing the matrices \code{Gammahat}, \code{Upsilonhat_inv} and \code{Thetahat} used for calculating the desparsified lasso, as well as \code{Omegahat}, the long run covariance matrix for the variables indexed by \code{H}. For details see \insertCite{adamek2020lasso;textual}{desla}}
+#' \item{\code{residuals}}{list containing the vector of residuals from the initial lasso regression (\code{init}) and the matrix of residuals from the nodewise regressions (\code{nw})}
+#' \item{\code{lambdas}}{values of lambda selected in the initial lasso regression (\code{init}) and the nodewise lasso regressions (\code{nw})}
+#' \item{\code{selected_vars}}{vector of indexes of the nonzero parameters in the initial lasso (\code{init}) and each nodewise regression (\code{nw})}
+#' \item{\code{wald_test}}{list containing elements for inference on \code{R} beta=\code{q}. \code{joint_test} contains the test statistic for the overall null hypothesis \code{R} beta=\code{q} along with the p-value. At default values of \code{R} and \code{q}, this tests the joint significance of all variables indexed by \code{H}. \code{row_tests} contains the vector of z-statistics and confidence intervals associated with each row of \code{R} beta - \code{q}, unscaled to be in the original scale of \code{y} and \code{X}. This output is only given when either \code{R} or \code{q} are supplied}
 #' @examples
 #' X<-matrix(rnorm(50*50), nrow=50)
 #' y<-X[,1:4] %*% c(1, 2, 3, 4) + rnorm(50)
@@ -54,14 +42,30 @@
 #' \insertAllCited{}
 #' @export
 desla=function(X, y, H,
-               alphas=0.05, R=NA, q=NA,
-               PIconstant=0.8, PIprobability=0.05, gridsize=100, demean=TRUE, scale=TRUE,
+               alphas=0.05,
+               penalize_H=TRUE,
+               R=NULL, q=NULL,
+               #PI_probability=0.05,
+               demean=TRUE, scale=TRUE,
                progress_bar=TRUE, parallel=TRUE, threads=NULL,
-               init_partial=NA, nw_partials=NA,  init_grid=NA, nw_grids=NA,
-               init_selection_type=NA, nw_selection_types=NA,
+               PI_constant=NULL, #nw_partials=NA, gridsize=100, init_grid=NA, nw_grids=NA,
+               #init_selection_type=NA, nw_selection_types=NA,
                #init_nonzero_limit=NA, nw_nonzero_limits=NA, #init_opt_threshold=NA, nw_opt_thresholds=NA, init_opt_type=NA, nw_opt_types=NA,
-               LRVtrunc=0, T_multiplier=0 #,manual_Thetahat_=NULL, manual_Upsilonhat_inv_=NULL, manual_nw_residuals_=NULL
+               LRV_bandwidth=NULL #,T_multiplier=0 #,manual_Thetahat_=NULL, manual_Upsilonhat_inv_=NULL, manual_nw_residuals_=NULL
                ){
+  if (is.null(PI_constant)) {
+    PI_constant=0.8
+  }
+  PI_probability=0.05
+  init_partial <- !penalize_H
+  if (is.null(LRV_bandwidth)) {
+    LRVtrunc <- 0
+    T_multiplier <- 0
+  } else {
+    LRVtrunc <- LRV_bandwidth[2]
+    T_multiplier <- LRV_bandwidth[1]
+  }
+
   if (is.numeric(H)) {
     if (!is.null(colnames(X))) {
     } else {
@@ -132,39 +136,37 @@ desla=function(X, y, H,
     demean<-scale<-FALSE
   }
 
-  if(is.na(init_partial)){
-    init_partial=FALSE
-  }
-  if(is.na(nw_partials[1])){
+  # if(is.na(nw_partials[1])){
     nw_partials=rep(FALSE, h)
-  }else if(length(nw_partials)==1){
-    nw_partials=rep(nw_partials, h)
-  }else if(length(nw_partials)!=length(H)){
-    warning("length of nw_partials does not match H")
-    nw_partials=rep(nw_partials[1], h)
-  }
+  # }else if(length(nw_partials)==1){
+  #   nw_partials=rep(nw_partials, h)
+  # }else if(length(nw_partials)!=length(H)){
+  #   warning("length of nw_partials does not match H")
+  #   nw_partials=rep(nw_partials[1], h)
+  # }
 
-  if(is.na(init_grid) || is.na(nw_grids)){
+    gridsize <- 100
+  # if(is.na(init_grid) || is.na(nw_grids)){
     g=.Rwrap_build_gridsXy(nrow(X), ncol(X), gridsize, X, y, H, demean, scale)
-    if(is.na(init_grid)){
+  #   if(is.na(init_grid)){
       init_grid=g$init_grid
-    }
-    if(is.na(nw_grids)){
+  #   }
+  #   if(is.na(nw_grids)){
       nw_grids=g$nw_grids
-    }
-  }
+  #   }
+  # }
 
-  if(is.na(init_selection_type)){ #1=BIC, 2=AIC, 3=EBIC, 4=PI
+  # if(is.na(init_selection_type)){ #1=BIC, 2=AIC, 3=EBIC, 4=PI
     init_selection_type=4
-  }
-  if(is.na(nw_selection_types[1])){ #1=BIC, 2=AIC, 3=EBIC, 4=PI
+  # }
+  # if(is.na(nw_selection_types[1])){ #1=BIC, 2=AIC, 3=EBIC, 4=PI
     nw_selection_types=rep(4, h)
-  }else if(length(nw_selection_types)==1){
-    nw_selection_types=rep(nw_selection_types, h)
-  }else if(length(nw_selection_types)!=length(H)){
-    warning("length of nw_selection_types does not match H")
-    nw_selection_types=rep(nw_selection_types[1], h)
-  }
+  # }else if(length(nw_selection_types)==1){
+  #   nw_selection_types=rep(nw_selection_types, h)
+  # }else if(length(nw_selection_types)!=length(H)){
+  #   warning("length of nw_selection_types does not match H")
+  #   nw_selection_types=rep(nw_selection_types[1], h)
+  # }
 
   #if(is.na(init_nonzero_limit)){
   #  init_nonzero_limit=0.5
@@ -212,19 +214,19 @@ desla=function(X, y, H,
 
   alphas=sort(alphas)
 
-  if(!all(is.na(R)) || !all(is.na(q))){
+  if(!is.null(R) || !is.null(q)){
     Rq_test<-TRUE
   }else{
     Rq_test<-FALSE
   }
 
-  if(all(is.na(R))){
+  if(all(is.null(R))){
     R=diag(h)
   }else if(ncol(R)!=h){
     warning("dimensions of R do not match H")
     R=diag(h)
   }
-  if(all(is.na(q))){
+  if(all(is.null(q))){
     q=rep(0, nrow(R))
   }else if(length(q)!=nrow(R)){
     warning("length of q does not match the rows of R")
@@ -261,7 +263,7 @@ desla=function(X, y, H,
 
   PDLI=.Rwrap_partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                  LRVtrunc, T_multiplier, alphas, R, q, PIconstant, PIprobability, progress_bar, threads,
+                                                  LRVtrunc, T_multiplier, alphas, R, q, PI_constant, PI_probability, progress_bar, threads,
                                                   manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_)
   CInames=rep("",2*length(alphas)+1)
   CInames[length(alphas)+1]="bhat"
@@ -297,6 +299,14 @@ desla=function(X, y, H,
     }
     names(nw_nonzero_poss)=Hnames
   }
+  wald_test <- list(joint_test = c(test_stat = PDLI$inference$joint_chi2_stat,
+                                   p_value = pchisq(PDLI$inference$joint_chi2_stat,
+                                                    df = length(q), lower.tail = FALSE)))
+  if(Rq_test){
+    wald_test$row_tests <- list(z_stats = PDLI$inference$z_stats_Rq,
+                                       intervals = PDLI$inference$intervals_Rq_unscaled)
+  }
+
   out <- list(#bhat_scaled=PDLI$bhat_1,
               bhat=PDLI$bhat_1_unscaled,
               standard_errors=PDLI$inference$standard_errors,
@@ -304,29 +314,23 @@ desla=function(X, y, H,
               #z_stats_Rq=PDLI$z_stats_Rq,
               #intervals_Rq=PDLI$inference$intervals_Rq_unscaled,
               #intervals_scaled=PDLI$inference$intervals,
-              joint_chi2_stat=PDLI$inference$joint_chi2_stat,
-              chi2_critical_values=PDLI$inference$chi2_quantiles,
+              wald_test = wald_test,
+              #joint_chi2_stat=PDLI$inference$joint_chi2_stat,
+              #chi2_critical_values=PDLI$inference$chi2_quantiles,
               betahat=PDLI$init$betahat,
-              Gammahat=PDLI$Gammahat,
+              DSL_matrices=list(Gammahat=PDLI$Gammahat,
               Upsilonhat_inv=PDLI$Upsilonhat_inv,
               Thetahat=PDLI$Thetahat,
-              Omegahat=PDLI$inference$Omegahat,
-              init_residual=PDLI$init$residual,
-              nw_residuals=PDLI$nw$residuals,
-              init_grid=PDLI$init$grid,
-              nw_grids=PDLI$nw$grids,
-              init_lambda=PDLI$init$lambda,
-              nw_lambdas=PDLI$nw$lambdas,
+              Omegahat=PDLI$inference$Omegahat),
+              residuals = list(init=PDLI$init$residual, nw=PDLI$nw$residuals),
+              #init_grid=PDLI$init$grid,
+              #nw_grids=PDLI$nw$grids,
+              lambdas=list(init=PDLI$init$lambda, nw=PDLI$nw$lambdas),
               #init_nonzero=PDLI$init$nonzero,
               #nw_nonzeros=PDLI$nw$nonzeros,
-              init_nonzero_pos=init_nonzero_pos,
-              nw_nonzero_poss=nw_nonzero_poss,
+              selected_vars=list(init=init_nonzero_pos,nw=nw_nonzero_poss),
               call = match.call(),
               varnames = colnames(X))
-  if(Rq_test){
-    out$z_stats_Rq=PDLI$inference$z_stats_Rq
-    out$intervals_Rq=PDLI$inference$intervals_Rq_unscaled
-  }
   class(out) <- "desla"
   return(out)
 }
@@ -343,12 +347,12 @@ desla=function(X, y, H,
 #' @param hmax (optional) integer, the maximum horizon up to which the impulse responses are computed. Should not exceed the \code{T_}-\code{lags} (24 by default)
 #' @param lags (optional) integer, the number of lags to be included in the local projection model. Should not exceed \code{T_}-\code{hmax}(12 by default)
 #' @param alphas (optional) vector of significance levels (0.05 by default)
-#' @param init_partial (optional) boolean, true if the parameter of interest should NOT be penalized (true by default)
+#' @param penalize_x (optional) boolean, true if the parameter of interest should be penalized (\code{FALSE} by default)
 #' @param selection (optional) integer, how should lambda be selected in BOTH the initial and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)
-#' @param PIconstant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
-#' @param progress_bar (optional) boolean, true if a progress bar should be displayed during execution (true by default)
+#' @param PI_constant (optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}
 #' @param state_variables (optional) matrix or data frame with \code{T_} rows, containing the variables that define the states. Each column should either represent a categorical variable indicating the state of each observation, or each column should be a binary indicator for one particular state; see 'Details'.
 #' @param OLS (optional) boolean, whether the local projections should be computed by OLS instead of the desparsified lasso. This should only be done for low-dimensional regressions (FALSE by default)
+#' @param progress_bar (optional) boolean, true if a progress bar should be displayed during execution (true by default)
 #' @param parallel boolean, whether parallel computing should be used. Default is TRUE.
 #' @param threads (optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE}. Default is to use all but two.
 #' @details The input to \code{state_variables} is transformed to a suitable matrix where each column represents one state using the function \code{\link{create_state_dummies}}. See that function for further details.
@@ -367,8 +371,14 @@ desla=function(X, y, H,
 #' @export
 HDLP=function(x, y, r=NULL, q=NULL, state_variables=NULL,
               y_predetermined=FALSE,cumulate_y=FALSE, hmax=24,
-              lags=12, alphas=0.05, init_partial=TRUE, selection=4, PIconstant=0.8,
+              lags=12, alphas=0.05, penalize_x=FALSE, #selection=4,
+              PI_constant=NULL,
               progress_bar=TRUE, OLS=FALSE, parallel=TRUE, threads=NULL){
+  if (is.null(PI_constant)) {
+    PI_constant=0.8
+  }
+  selection=4
+  init_partial <- !penalize_x
   if(!is.matrix(x)){
     x<-as.matrix(x, ncol=1)
   }
@@ -652,21 +662,11 @@ create_state_dummies_from_vector <- function(x, varname = "StateVar") {
 
 #' Extract coefficients
 #' @inheritParams confint.desla
-#' @param scaled return the coefficients for the scaled variables (as used in the estimation)
-#' if \code{TRUE} or the re-scaled coefficients for the original variables if \code{FALSE}
-#' (default).
 #' @export
 #' @keywords internal
-coef.desla <- function(object,
-                       #scaled = FALSE,
-                       ...) {
-  #if (scaled) {
-  #  cf <- c(object$bhat_scaled)
-  #  coefnames <- rownames(object$bhat_scaled)
-  #} else {
-    cf <- c(object$bhat)
-    coefnames <- rownames(object$bhat)
-  #}
+coef.desla <- function(object, ...) {
+  cf <- c(object$bhat)
+  coefnames <- rownames(object$bhat)
   names(cf) <- coefnames
   cf
 }
@@ -694,8 +694,6 @@ confint.desla <- function (object, parm, level = 0.95, ...)
   rownames(ci) = parm
 
   cnames <- colnames(object$intervals)
-  #lvl <- as.numeric(substr(cnames[1], 7, nchar(cnames[1])))
-  #se <- c(cf - object$intervals[, 1]) / stats::qnorm(1 - lvl/2)
   se<-c(object$standard_errors)
   names(se) <- names(cf)
 
@@ -712,8 +710,6 @@ summary.desla <- function(object, ...) {
   cf <- coef.desla(object)
   varnames <- names(cf)
   cnames <- colnames(object$intervals)
-  #lvl <- as.numeric(substr(cnames[1], 7, nchar(cnames[1])))
-  #se <- c(cf - object$intervals[, 1]) / stats::qnorm(1 - lvl/2)
   se<-c(object$standard_errors)
   t_val <- cf / se
   p_val <- 2 * stats::pnorm(abs(t_val), lower.tail = FALSE)
@@ -721,23 +717,23 @@ summary.desla <- function(object, ...) {
                             "Pr(>|z|)" = p_val)
   rownames(out$coefficients) <- varnames
 
-  out$chisq <- c(object$joint_chi2_stat, object$chi2_critical_values)
-  names(out$chisq)<-c("Chi-squared test statistic", paste0("Critical value ", rownames(object$chi2_critical_values)))
+  out$chisq <- c(object$wald_test$joint_tes['test_stat'], object$wald_test$joint_test['p_value'])
+  names(out$chisq)<-c("Joint test statistic", "p-value")
 
-  out$lambdas <- c(object$init_lambda, object$nw_lambdas)
+  out$lambdas <- c(object$lambdas$init, object$lambdas$nw)
   names(out$lambdas) <- c("Initial regression", varnames)
 
-  if (length(object$init_nonzero_pos) == 0) {
+  if (length(object$selected_vars$init) == 0) {
     varsel <- "none"
   } else {
-    varsel <- object$varnames[object$init_nonzero_pos]
+    varsel <- object$varnames[object$selected_vars$init]
   }
   out$selected <- list("Initial regression" = varsel)
   for (i in 1:length(varnames)) {
-    if (length(object$nw_nonzero_poss[[i]]) == 0) {
+    if (length(object$selected_vars$nw[[i]]) == 0) {
       varsel <- "none"
     } else {
-      varsel <- object$varnames[object$nw_nonzero_poss[[i]]]
+      varsel <- object$varnames[-i][object$selected_vars$nw[[i]]]
     }
     out$selected[[varnames[i]]] <- varsel
   }
