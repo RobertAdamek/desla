@@ -74,7 +74,7 @@ plot(h)
 
 The function also implements the state-based local projections of Ramey & Zubairy (2018) with the optional `state_variables` argument. State variables can be created in two ways:
 
-* A matrix with dummy variables, where each column indicates a 1 (or `TRUE`) for the observations belonig to that state:
+* A matrix with dummy variables, where each column indicates a 1 (or `TRUE`) for the observations belongig to that state:
 ```{r dummy}
 s_dummies <- matrix(c(rep(1, 50), rep(0, 100), rep(1, 50)), ncol=2, 
                     dimnames = list(NULL, c("A","B")))
