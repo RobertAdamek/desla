@@ -55,8 +55,6 @@ HDLP(
 \item{parallel}{boolean, whether parallel computing should be used. Default is TRUE.}
 
 \item{threads}{(optional) integer, how many threads should be used for parallel computing if \code{parallel=TRUE}. Default is to use all but two.}
-
-\item{selection}{(optional) integer, how should lambda be selected in BOTH the initial and nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
 }
 \value{
 Returns a list with the following elements: \cr

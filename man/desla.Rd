@@ -49,20 +49,6 @@ desla(
 \item{PI_constant}{(optional) constant, used in the plug-in selection method (0.8 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
 
 \item{LRV_bandwidth}{(optional) vector of parameters controlling the bandwidth \code{Q_T} used in the long run covariance matrix, \code{Q_T}=ceil(\code{LRV_bandwidth[1]}*\code{T_}^\code{LRV_bandwidth[2]}). When \code{LRV_bandwidth=NULL}, the bandwidth is selected according to \insertCite{andrews1991heteroskedasticity;textual}{desla} (default)}
-
-\item{PI_probability}{(optional) probability, used in the plug-in selection method (0.05 by default). For details see \insertCite{adamek2020lasso;textual}{desla}}
-
-\item{gridsize}{(optional) integer, how many different lambdas there should be in both initial and nodewise grids (100 by default)}
-
-\item{nw_partials}{(optional) boolean vector with the dimension of \code{H}, true if you want the nodewise regressions to be partially penalized (all false by default)}
-
-\item{init_grid}{(optional) vector, containing user specified initial grid}
-
-\item{nw_grids}{(optional) matrix with number of rows the size of \code{H}, rows containing user specified grids for the nodewise regressions}
-
-\item{init_selection_type}{(optional) integer, how should lambda be selected in the initial regression, 1=BIC, 2=AIC, 3=EBIC, 4=PI (4 by default)}
-
-\item{nw_selection_types}{(optional) integer vector with the dimension of \code{H}, how should lambda be selected in the nodewise regressions, 1=BIC, 2=AIC, 3=EBIC, 4=PI (all 4s by default)}
 }
 \value{
 Returns a list with the following elements: \cr
