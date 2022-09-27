@@ -21,6 +21,8 @@ Imports:
     Rdpack,
     stats,
     parallelly
+URL: https://github.com/RobertAdamek/desla
+BugReports: https://github.com/RobertAdamek/desla/issues
 Suggests:
     ggplot2
 RdMacros: 
