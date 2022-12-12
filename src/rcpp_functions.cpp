@@ -1486,13 +1486,22 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     w=join_horiz(r,x,y,q);
   }
   w_lags=Rcpp_make_lags(w, lags);
-  if(state_dummy_.isNotNull()){
-    regressors=join_horiz(dummify(state_dummy, x),
-                          state_dummy.cols(0, state_dummy.n_cols-2),
-                          dummify(state_dummy, join_horiz(r, w_lags))
-    );
+  if(state_dummy_.isNotNull()){ ////if y_predetermined=T, add y to the RHS contemporaneously
+    if(y_predetermined){
+      regressors=join_horiz(dummify(state_dummy, x),
+                            state_dummy.cols(0, state_dummy.n_cols-2),
+                            dummify(state_dummy, join_horiz(r, w_lags,y)));
+    }else{
+      regressors=join_horiz(dummify(state_dummy, x),
+                            state_dummy.cols(0, state_dummy.n_cols-2),
+                            dummify(state_dummy, join_horiz(r, w_lags)));
+    }
   }else{
-    regressors=join_horiz(x, r, w_lags);
+    if(y_predetermined){
+      regressors=join_horiz(x, r, w_lags, y);
+    }else{
+      regressors=join_horiz(x, r, w_lags);
+    }
   }
   if(is_same && states==1){//If x and y are the same, estimate at horizon 1. The only parts taken from this step will be the nodewise regressions.
     dependent=mat(T_,1,fill::zeros);
@@ -1549,7 +1558,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
       arma::mat mat_of_ones(1,1+2*as<arma::mat>(alphas).n_elem, fill::ones);
       intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=mat_of_ones.row(0);
     }else{
-      intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);
+      intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);//this happens when y_predetermined=F and y!=x
     }
   }
   Progress p(hmax, progress_bar);
