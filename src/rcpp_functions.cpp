@@ -130,6 +130,14 @@ struct partial_desparsified_lasso_inference_output{
   arma::vec chi2_quantiles;
   arma::uvec init_nonzero_pos;
   std::list<arma::uvec> nw_nonzero_poss;
+
+  arma::mat intervals_EWC;
+  arma::mat intervals_unscaled_EWC;
+  arma::mat Omegahat_EWC;
+
+  arma::mat intervals_NWfb;
+  arma::mat intervals_unscaled_NWfb;
+  arma::mat Omegahat_NWfb;
 };
 
 struct simulated_data{
@@ -173,6 +181,8 @@ struct reg_output{
   arma::vec z_quantiles;
   arma::mat intervals;
   arma::mat intervals_unscaled;
+  arma::mat intervals_unscaled_EWC;
+  arma::mat intervals_unscaled_NWfb;
   arma::vec betahat;
   arma::vec b_H;
   arma::vec b_H_unscaled;
@@ -626,7 +636,7 @@ mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsign
     Q_T_double=std::ceil(Andrews91_truncation(What, T_, h));
     Q_T= (int) Q_T_double;
   }else{
-    Q_T_double=std::ceil(pow(T_multiplier*double(T_),LRVtrunc));
+    Q_T_double=std::ceil(T_multiplier*pow(double(T_),LRVtrunc));
     Q_T= (int) Q_T_double;
   }
   if(Q_T_double>double(T_)/2.0){
@@ -642,6 +652,30 @@ mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsign
       Xi_ell=(1.0/double(T_-ell))*(What.rows(ell,T_-1)).t()*What.rows(0,T_-ell-1);
       Omegahat+=(1-double(ell)/double(Q_T))*(Xi_ell+Xi_ell.t());
     }
+  }
+  return(Omegahat);
+}
+
+mat LRVestimatorEWC(const vec& init_residual, const mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
+  mat Omegahat(h,h,fill::zeros);
+  vec uhat=init_residual;
+  mat vhat=nw_residuals;
+  mat What(T_,h);
+  mat Xi_ell(h,h);
+  for(unsigned int a=0;a<h;a++){
+    What.col(a)=uhat%vhat.col(a);
+  }
+  double Q_T_double;
+  int Q_T;
+  Q_T_double=std::ceil(T_multiplier*pow(double(T_),LRVtrunc));
+  Q_T= (int) Q_T_double;
+
+  vec Lambda_hat(h, fill::zeros);
+  for(int j=1; j<=Q_T; j++){
+    for(unsigned int t=1; t<=T_; t++){
+      Lambda_hat+=(What.row(t-1)).t()*sqrt(2.0/double(T_))*cos(datum::pi*j*(double(t)-1.0/2.0)/double(T_));
+    }
+    Omegahat+=Lambda_hat*Lambda_hat.t()/Q_T_double;
   }
   return(Omegahat);
 }
@@ -1026,7 +1060,7 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
           double nw_opt_threshold_p=nw_opt_thresholds(i);
           int nw_opt_type_p=nw_opt_types(i);
           partial_lasso_selected_output nw_L_p=partial_lasso_selected(Xminusj_p, x_j_p, nw_H_p, nw_partial_p, nw_grid_p, nw_selection_type_p, nw_nonzero_limit_p,
-                                      nw_opt_threshold_p, nw_opt_type_p, PIconstant, PIprobability);
+                                                                      nw_opt_threshold_p, nw_opt_type_p, PIconstant, PIprobability);
           double tauhat_j_p=nw_L_p.SSR/double(T_)+2*nw_L_p.lambda*sum(abs(nw_L_p.betahat));
           Upsilonhat_inv(i,i)= 1.0/tauhat_j_p;
           Gammahat(i,j_p)= 1;
@@ -1220,6 +1254,58 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   for(unsigned int p=0; p<P; p++){
     z_stats_Rq(p)=(Rbhat_1(p)-q_scaled(p))/std_errors(p);
   }
+
+  ////this part deals with doing inference via the EWC instead of NW
+  arma::mat Omegahat_EWC=LRVestimatorEWC(PDL.init_residual, PDL.nw_residuals, PDL.N, PDL.T_, PDL.h, 2/3, 0.4);
+  double nu=std::ceil(0.4*pow(double(PDL.T_),2/3));
+  arma::vec t_nu_quantiles=qt(alphas/2.0,nu,false,false);
+  arma::mat covariance_EWC=PDL.Upsilonhat_inv*Omegahat_EWC*PDL.Upsilonhat_inv;
+  arma::vec std_errors_individual_vars_EWC(PDL.h);
+  for(unsigned int i=0; i<PDL.h; i++){
+    std_errors_individual_vars_EWC(i)=sqrt( as_scalar(covariance_EWC(i,i))/double(PDL.T_) );
+  }
+  arma::vec std_errors_individual_vars_unscale_EWC=unscale(s, std_errors_individual_vars_EWC, H, demean, scale);
+  arma::mat intervals_EWC(PDL.h, 2*alphas.length()+1); // intervals for individual variables
+  intervals_EWC.col(alphas.length())=PDL.bhat_1;
+  for(unsigned int p=0; p<PDL.h; p++){
+    for(unsigned int j=0; j<alphas.length(); j++){
+      intervals_EWC(p,j)=PDL.bhat_1(p)-t_nu_quantiles(j)*std_errors_individual_vars_EWC(p);
+      intervals_EWC(p, 2*alphas.length()-j)=PDL.bhat_1(p)+t_nu_quantiles(j)*std_errors_individual_vars_EWC(p);
+    }
+  }
+  arma::mat intervals_unscaled_EWC=intervals_EWC; //unscaling works with just the normal unscale function
+  for(int j=0; j<2*alphas.length()+1; j++){
+    intervals_unscaled_EWC.col(j)=unscale(s, intervals_EWC.col(j), H, demean, scale);
+  }
+  ////////////////////////////////////////////////////////////////////
+
+
+  ////this part deals with the fixed-b asymptotics of NW
+  arma::mat Omegahat_NWfb=LRVestimator(PDL.init_residual, PDL.nw_residuals, PDL.N, PDL.T_, PDL.h, 1/2, 1.3);
+  double S=std::ceil(1.3*pow(double(PDL.T_),1/2));
+  double a0=1.96, a1=2.9694, a2=0.3142, a3=-0.3427; //taken from Table 1 of Kiefer and Vogelsang (2005)
+  double b=S/PDL.T_;
+  double cv=a0+a1*b+a2*pow(b,2)+a3*pow(b,3);
+  arma::mat covariance_NWfb=PDL.Upsilonhat_inv*Omegahat_NWfb*PDL.Upsilonhat_inv;
+  arma::vec std_errors_individual_vars_NWfb(PDL.h);
+  for(unsigned int i=0; i<PDL.h; i++){
+    std_errors_individual_vars_NWfb(i)=sqrt( as_scalar(covariance_NWfb(i,i))/double(PDL.T_) );
+  }
+  arma::vec std_errors_individual_vars_unscale_NWfb=unscale(s, std_errors_individual_vars_NWfb, H, demean, scale);
+  arma::mat intervals_NWfb(PDL.h, 2*1+1); // intervals for individual variables
+  intervals_NWfb.col(1)=PDL.bhat_1;
+  for(unsigned int p=0; p<PDL.h; p++){
+    for(unsigned int j=0; j<1; j++){
+      intervals_NWfb(p,j)=PDL.bhat_1(p)-cv*std_errors_individual_vars_NWfb(p);
+      intervals_NWfb(p, 2*1-j)=PDL.bhat_1(p)+cv*std_errors_individual_vars_NWfb(p);
+    }
+  }
+  arma::mat intervals_unscaled_NWfb=intervals_NWfb; //unscaling works with just the normal unscale function
+  for(int j=0; j<2*1+1; j++){
+    intervals_unscaled_NWfb.col(j)=unscale(s, intervals_NWfb.col(j), H, demean, scale);
+  }
+  //////////////////////////////////////////////////////
+
   partial_desparsified_lasso_inference_output ret;
   ret.init_partial=PDL.init_partial;
   //ret.nw_partials=PDL.nw_partials;
@@ -1278,6 +1364,14 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   ret.chi2_quantiles=chi2_quantiles;
   ret.init_nonzero_pos=PDL.init_nonzero_pos;
   ret.nw_nonzero_poss=PDL.nw_nonzero_poss;
+
+  ret.intervals_EWC=intervals_EWC;
+  ret.intervals_unscaled_EWC=intervals_unscaled_EWC;
+  ret.Omegahat_EWC=Omegahat_EWC;
+
+  ret.intervals_NWfb=intervals_NWfb;
+  ret.intervals_unscaled_NWfb=intervals_unscaled_NWfb;
+  ret.Omegahat_NWfb=Omegahat_NWfb;
   return ret;
 }
 
@@ -1334,6 +1428,8 @@ arma::mat dummify(const arma::mat& dummy, const arma::mat& M){
 
 struct LP_state_dependent_output{
   arma::cube intervals;
+  arma::cube intervals_EWC;
+  arma::cube intervals_NWfb;
   arma::mat manual_Thetahat;
   arma::mat betahats;
   arma::mat regressors;
@@ -1467,9 +1563,14 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     nw_opt_types(i)=3;
   }
   arma::mat intervals_zeros(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
+  arma::mat intervals_zeros_NWfb(hmax+1,1+2*1, fill::zeros);//////////////////////////
   arma::cube intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, states);
+  arma::cube intervals_EWC(hmax+1,1+2*as<arma::mat>(alphas).n_elem, states);////////////////////////////////
+  arma::cube intervals_NWfb(hmax+1,1+2*1, states);////////////////////////////////
   for(unsigned int i=0; i<states; i++){
     intervals.slice(i)=intervals_zeros;
+    intervals_EWC.slice(i)=intervals_zeros;//////////////////////////////
+    intervals_NWfb.slice(i)=intervals_zeros_NWfb;//////////////////////////////
   }
   arma::mat R(H.n_elem, H.n_elem, fill::eye);
   arma::vec Q(H.n_elem, fill::ones);
@@ -1544,6 +1645,8 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     d.z_quantiles=pdli.z_quantiles;
     d.intervals=pdli.intervals;
     d.intervals_unscaled=pdli.intervals_unscaled;
+    d.intervals_unscaled_EWC=pdli.intervals_unscaled_EWC;///////////////////////////////
+    d.intervals_unscaled_NWfb=pdli.intervals_unscaled_NWfb;////////////////////////////
     d.betahat=pdli.betahat;
     d.b_H=pdli.bhat_1;
     d.b_H_unscaled=pdli.bhat_1_unscaled;
@@ -1556,9 +1659,14 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     }else if(is_same && states==1){
       //intervals.slice(i)=mat(hmax+1,1+2*as<arma::mat>(alphas).n_elem-1, fill::ones);
       arma::mat mat_of_ones(1,1+2*as<arma::mat>(alphas).n_elem, fill::ones);
+      arma::mat mat_of_ones_NWfb(1,1+2*1, fill::ones);//////////////////////
       intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=mat_of_ones.row(0);
+      intervals_EWC(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=mat_of_ones.row(0);//////////////////
+      intervals_NWfb(span(0,0),span(0,1+2*1-1),span(i,i))=mat_of_ones_NWfb.row(0);//////////////////
     }else{
       intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);//this happens when y_predetermined=F and y!=x
+      intervals_EWC(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled_EWC).row(i);///////
+      intervals_NWfb(span(0,0),span(0,1+2*1-1),span(i,i))=(d.intervals_unscaled_NWfb).row(i);///////
     }
   }
   Progress p(hmax, progress_bar);
@@ -1602,6 +1710,8 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
           d_p.z_quantiles=pdli_p.z_quantiles;
           d_p.intervals=pdli_p.intervals;
           d_p.intervals_unscaled=pdli_p.intervals_unscaled;
+          d_p.intervals_unscaled_EWC=pdli_p.intervals_unscaled_EWC;/////////////////
+          d_p.intervals_unscaled_NWfb=pdli_p.intervals_unscaled_NWfb;////////////////
           d_p.betahat=pdli_p.betahat;
           d_p.b_H=pdli_p.bhat_1;
           d_p.b_H_unscaled=pdli_p.bhat_1_unscaled;
@@ -1610,6 +1720,8 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
         betahats.col(h)=d_p.betahat;
         for(unsigned int j=0; j<states; j++){
           intervals(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled).row(j);
+          intervals_EWC(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled_EWC).row(j);//////////
+          intervals_NWfb(span(h,h),span(0,1+2*1-1),span(j,j))=(d_p.intervals_unscaled_NWfb).row(j);/////////
         }
         p.increment();
       }
@@ -1649,6 +1761,8 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
         d_p.z_quantiles=pdli_p.z_quantiles;
         d_p.intervals=pdli_p.intervals;
         d_p.intervals_unscaled=pdli_p.intervals_unscaled;
+        d_p.intervals_unscaled_EWC=pdli_p.intervals_unscaled_EWC;//////////////
+        d_p.intervals_unscaled_NWfb=pdli_p.intervals_unscaled_NWfb;//////////////
         d_p.betahat=pdli_p.betahat;
         d_p.b_H=pdli_p.bhat_1;
         d_p.b_H_unscaled=pdli_p.bhat_1_unscaled;
@@ -1657,12 +1771,16 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
       betahats.col(h)=d_p.betahat;
       for(unsigned int j=0; j<states; j++){
         intervals(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled).row(j);
+        intervals_EWC(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled_EWC).row(j);//////////
+        intervals_NWfb(span(h,h),span(0,1+2*1-1),span(j,j))=(d_p.intervals_unscaled_NWfb).row(j);/////////
       }
       p.increment();
     }
   }
   LP_state_dependent_output LPsdo;
   LPsdo.intervals=intervals;
+  LPsdo.intervals_EWC=intervals_EWC;///////////////
+  LPsdo.intervals_NWfb=intervals_NWfb;//////////////
   LPsdo.manual_Thetahat=mThetahat;
   LPsdo.betahats=betahats;
   LPsdo.regressors=regressors;
@@ -1756,18 +1874,18 @@ List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::
                          Named("nonzero_pos")=PDLI.init_nonzero_pos
   );
   List nw=List::create(//Named("partials")=PDLI.nw_partials,
-                       Named("gridsizes")=PDLI.nw_gridsizes,
-                       Named("lambda_poss")=PDLI.nw_lambda_poss,
-                       Named("nonzeros")=PDLI.nw_nonzeros,
-                       Named("lambdas")=PDLI.nw_lambdas,
-                       Named("nonzero_limits")=PDLI.nw_nonzero_limits,
-                       Named("criterion_values")=PDLI.nw_criterion_values,
-                       Named("SSRs")=PDLI.nw_SSRs,
-                       Named("grids")=PDLI.nw_grids,
-                       Named("residuals")=PDLI.nw_residuals,
-                       Named("opt_types")=PDLI.nw_opt_types,
-                       Named("selection_types")=PDLI.nw_selection_types,
-                       Named("nonzero_poss")=PDLI.nw_nonzero_poss
+    Named("gridsizes")=PDLI.nw_gridsizes,
+    Named("lambda_poss")=PDLI.nw_lambda_poss,
+    Named("nonzeros")=PDLI.nw_nonzeros,
+    Named("lambdas")=PDLI.nw_lambdas,
+    Named("nonzero_limits")=PDLI.nw_nonzero_limits,
+    Named("criterion_values")=PDLI.nw_criterion_values,
+    Named("SSRs")=PDLI.nw_SSRs,
+    Named("grids")=PDLI.nw_grids,
+    Named("residuals")=PDLI.nw_residuals,
+    Named("opt_types")=PDLI.nw_opt_types,
+    Named("selection_types")=PDLI.nw_selection_types,
+    Named("nonzero_poss")=PDLI.nw_nonzero_poss
   );
   List inference=List::create(Named("Omegahat")=PDLI.Omegahat,
                               Named("R")=PDLI.R,
@@ -1782,6 +1900,14 @@ List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::
                               Named("joint_chi2_stat")=PDLI.joint_chi2_stat,
                               Named("chi2_quantiles")=PDLI.chi2_quantiles
   );
+  List EWC=List::create(Named("intervals_EWC")=PDLI.intervals_EWC,
+                        Named("intervals_unscaled_EWC")=PDLI.intervals_unscaled_EWC,
+                        Named("Omegahat_EWC")=PDLI.Omegahat_EWC
+    );
+  List NWfb=List::create(Named("intervals_NWfb")=PDLI.intervals_NWfb,
+                        Named("intervals_unscaled_NWfb")=PDLI.intervals_unscaled_NWfb,
+                        Named("Omegahat_NWfb")=PDLI.Omegahat_NWfb
+  );
   return List::create(Named("misc")=misc,
                       Named("init")=init,
                       Named("nw")=nw,
@@ -1791,7 +1917,9 @@ List Rwrap_partial_desparsified_lasso_inference(const arma::mat& X, const arma::
                       Named("gammahats")=PDLI.gammahats,
                       Named("Gammahat")=PDLI.Gammahat,
                       Named("Upsilonhat_inv")=PDLI.Upsilonhat_inv,
-                      Named("Thetahat")=PDLI.Thetahat
+                      Named("Thetahat")=PDLI.Thetahat,
+                      Named("EWC")=EWC,
+                      Named("NWfb")=NWfb
   );
 }
 
@@ -1970,13 +2098,13 @@ LP_output local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const
 
 // [[Rcpp::export(.Rcpp_local_projection)]]
 List Rcpp_local_projection(Nullable<NumericMatrix> r_, const arma::vec& x, const arma::vec& y, Nullable<NumericMatrix> q_,
-                            const bool& y_predetermined,const bool& cumulate_y, const unsigned int& hmax,
-                            const unsigned int& lags,const NumericVector& alphas, const bool& init_partial, const int& selection, const double& PIconstant,
-                            const bool& progress_bar, const unsigned int& threads){
+                           const bool& y_predetermined,const bool& cumulate_y, const unsigned int& hmax,
+                           const unsigned int& lags,const NumericVector& alphas, const bool& init_partial, const int& selection, const double& PIconstant,
+                           const bool& progress_bar, const unsigned int& threads){
   LP_output LPo=local_projection(r_, x, y,  q_,
-                                      y_predetermined, cumulate_y, hmax,
-                                      lags, alphas, init_partial, selection, PIconstant,
-                                      progress_bar, threads);
+                                 y_predetermined, cumulate_y, hmax,
+                                 lags, alphas, init_partial, selection, PIconstant,
+                                 progress_bar, threads);
   return(List::create(Named("intervals")=LPo.intervals,
                       Named("manual_Thetahat")=LPo.manual_Thetahat,
                       Named("betahats")=LPo.betahats));
@@ -1993,6 +2121,8 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
                                                                    lags,alphas, init_partial, selection, PIconstant,
                                                                    progress_bar, OLS, threads);
   return List::create(Named("intervals")=LPsdo.intervals,
+                      Named("intervals_EWC")=LPsdo.intervals_EWC,////////////
+                      Named("intervals_NWfb")=LPsdo.intervals_NWfb,//////////////
                       Named("manual_Thetahat")=LPsdo.manual_Thetahat,
                       Named("betahats")=LPsdo.betahats,
                       Named("regressors")=LPsdo.regressors,
@@ -2001,4 +2131,3 @@ List Rcpp_local_projection_state_dependent(Nullable<NumericMatrix> r_, const arm
                       Named("nw_residuals")=LPsdo.nw_residuals,
                       Named("dependents")=LPsdo.dependents);
 }
-

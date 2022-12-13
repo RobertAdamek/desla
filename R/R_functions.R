@@ -44,7 +44,7 @@ desla=function(X, y, H,
                progress_bar=TRUE, parallel=TRUE, threads=NULL,
                PI_constant=NULL,
                LRV_bandwidth=NULL
-               ){
+){
   if (is.null(PI_constant)) {
     PI_constant=0.8
   }
@@ -112,7 +112,7 @@ desla=function(X, y, H,
     X<-as.matrix(X)
   }
   if(!is.matrix(y)){
-      y<-as.matrix(y)
+    y<-as.matrix(y)
   }
   check_cols <- apply(X, 2, function(x){max(x) - min(x) == 0})
   if( (demean || scale) && (sum(check_cols)>0) ){
@@ -177,9 +177,9 @@ desla=function(X, y, H,
   manual_nw_residuals_=NULL
 
   PDLI=.Rwrap_partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
-                                                  init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                  LRVtrunc, T_multiplier, alphas, R, q, PI_constant, PI_probability, progress_bar, threads,
-                                                  manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_)
+                                                   init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
+                                                   LRVtrunc, T_multiplier, alphas, R, q, PI_constant, PI_probability, progress_bar, threads,
+                                                   manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_)
   CInames=rep("",2*length(alphas)+1)
   CInames[length(alphas)+1]="bhat"
   for(i in 1:length(alphas)){
@@ -203,6 +203,11 @@ desla=function(X, y, H,
   rownames(PDLI$nw$lambdas)=Hnames
   rownames(PDLI$nw$nonzeros)=Hnames
   rownames(PDLI$init$betahat)=colnames(X)
+
+  rownames(PDLI$EWC$intervals_EWC)=Hnames
+  rownames(PDLI$EWC$intervals_unscaled_EWC)=Hnames
+  colnames(PDLI$EWC$intervals_EWC)=CInames
+  colnames(PDLI$EWC$intervals_unscaled_EWC)=CInames
   if(!is.null(manual_Thetahat_) && !is.null(manual_Upsilonhat_inv_) && !is.null(manual_nw_residuals_)){ #if all nodewise parts are provided, then the nodewise regressions won't be run
     init_nonzero_pos<-NULL
     nw_nonzero_poss<-NULL
@@ -216,10 +221,10 @@ desla=function(X, y, H,
   }
   wald_test <- list(joint_test = c(test_stat = PDLI$inference$joint_chi2_stat,
                                    p_value = stats::pchisq(PDLI$inference$joint_chi2_stat,
-                                                    df = length(q), lower.tail = FALSE)))
+                                                           df = length(q), lower.tail = FALSE)))
   if(Rq_test){
     wald_test$row_tests <- list(z_stats = PDLI$inference$z_stats_Rq,
-                                       intervals = PDLI$inference$intervals_Rq_unscaled)
+                                intervals = PDLI$inference$intervals_Rq_unscaled)
   }
 
   out <- list(bhat=PDLI$bhat_1_unscaled,
@@ -229,14 +234,16 @@ desla=function(X, y, H,
               wald_test = wald_test,
               betahat=PDLI$init$betahat,
               DSL_matrices=list(Gammahat=PDLI$Gammahat,
-              Upsilonhat_inv=PDLI$Upsilonhat_inv,
-              Thetahat=PDLI$Thetahat,
-              Omegahat=PDLI$inference$Omegahat),
+                                Upsilonhat_inv=PDLI$Upsilonhat_inv,
+                                Thetahat=PDLI$Thetahat,
+                                Omegahat=PDLI$inference$Omegahat),
               residuals = list(init=PDLI$init$residual, nw=PDLI$nw$residuals),
               lambdas=list(init=PDLI$init$lambda, nw=PDLI$nw$lambdas),
               selected_vars=list(init=init_nonzero_pos,nw=nw_nonzero_poss),
               call = match.call(),
-              varnames = colnames(X))
+              varnames = colnames(X),
+              EWC=PDLI$EWC,
+              NWfb=PDLI$NWfb)
   class(out) <- "desla"
   return(out)
 }
@@ -300,7 +307,7 @@ HDLP=function(x, y, r=NULL, q=NULL, state_variables=NULL,
     alphas<-as.matrix(alphas, ncol=1)
   }
   if(!is.null(state_variables)){
-      state_variables <- create_state_dummies(state_variables)
+    state_variables <- create_state_dummies(state_variables)
   }
   #A check to make sure that hmax+lags isn't too long compared to the effective sample size
   if(!is.null(state_variables)){
@@ -320,9 +327,9 @@ HDLP=function(x, y, r=NULL, q=NULL, state_variables=NULL,
     threads <- 0
   }
   LP=.Rcpp_local_projection_state_dependent(r, x, y, q, state_variables,
-                            y_predetermined,cumulate_y, hmax,
-                            lags,alphas, init_partial, selection, PI_constant,
-                            progress_bar, OLS, threads)
+                                            y_predetermined,cumulate_y, hmax,
+                                            lags,alphas, init_partial, selection, PI_constant,
+                                            progress_bar, OLS, threads)
   CInames=rep("",2*length(alphas)+1)
   CInames[length(alphas)+1]="bhat"
   for(i in 1:length(alphas)){
@@ -344,6 +351,8 @@ HDLP=function(x, y, r=NULL, q=NULL, state_variables=NULL,
   }
 
   out <- list(intervals=LP$intervals,
+              intervals_EWC=LP$intervals_EWC,
+              intervals_NWfb=LP$intervals_NWfb,
               Thetahat=LP$manual_Thetahat,
               betahats=LP$betahats,
               regressors=LP$regressors,
@@ -658,7 +667,7 @@ print.summary.desla <- function (x, digits = max(3L, getOption("digits") - 3L),
 
   cat("\nCoefficients:\n")
   stats::printCoefmat(x$coefficients, digits = digits, signif.stars = signif.stars,
-                       a.print = "NA", ...)
+                      a.print = "NA", ...)
 
   X2<-data.frame(x$chisq)
   colnames(X2)<-NULL
