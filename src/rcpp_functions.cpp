@@ -640,7 +640,7 @@ mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsign
     Q_T= (int) Q_T_double;
   }
   if(Q_T_double>double(T_)/2.0){
-    warning("Q_T is larger than T/2, taking Q_T=ceil(T/2) to prevent unexpected behavior");
+    //warning("Q_T is larger than T/2, taking Q_T=ceil(T/2) to prevent unexpected behavior");
     Q_T_double=std::ceil(double(T_)/2.0);
     Q_T= (int) Q_T_double;
   }
@@ -1454,12 +1454,10 @@ reg_output OLS_HAC(const arma::mat& X, const arma::colvec& y, const arma::uvec& 
   arma::vec uhat=y_-X_*betahat;
   arma::mat Omegahat=LRVestimator(uhat, X_, N_, T_, N_, LRVtrunc, T_multiplier);
   arma::mat V=Thetahat*Omegahat*Thetahat.t();
-
   arma::vec std_errors(H.n_elem);
   for(unsigned int i=0; i<H.n_elem; i++){
     std_errors(i)=sqrt(V(i,i)/T_);
   }
-
   arma::vec b_H=betahat.rows(H);
   arma::vec z_quantiles=qnorm(alphas/2.0,0.0,1.0,false,false);
   arma::mat intervals(H.n_elem,2*alphas.length()+1);
@@ -1475,7 +1473,6 @@ reg_output OLS_HAC(const arma::mat& X, const arma::colvec& y, const arma::uvec& 
     intervals_unscaled.col(j)=unscale(s, intervals.col(j), H, demean, scale);
   }
   arma::vec b_H_unscaled=unscale(s, b_H, H, demean, scale);
-
   //List init=List::create(Named("betahat")=betahat
   //);
   //List inference=List::create(Named("Omegahat")=Omegahat,
@@ -1489,11 +1486,65 @@ reg_output OLS_HAC(const arma::mat& X, const arma::colvec& y, const arma::uvec& 
   //                    Named("b_H_unscaled")=b_H_unscaled,
   //                    Named("Thetahat")=Thetahat
   //);
+
+  ////this part deals with doing inference via the EWC instead of NW
+  arma::mat Omegahat_EWC=LRVestimatorEWC(uhat, X_, N_, T_, N_, 2/3, 0.4);
+  double nu=std::ceil(0.4*pow(double(T_),2/3));
+  arma::vec t_nu_quantiles=qt(alphas/2.0,nu,false,false);
+  arma::mat covariance_EWC=Thetahat*Omegahat_EWC*Thetahat;
+  arma::vec std_errors_individual_vars_EWC(H.n_elem);
+  for(unsigned int i=0; i<H.n_elem; i++){
+    std_errors_individual_vars_EWC(i)=sqrt( as_scalar(covariance_EWC(i,i))/double(T_) );
+  }
+  arma::vec std_errors_individual_vars_unscale_EWC=unscale(s, std_errors_individual_vars_EWC, H, demean, scale);
+  arma::mat intervals_EWC(H.n_elem, 2*alphas.length()+1); // intervals for individual variables
+  intervals_EWC.col(alphas.length())=b_H;
+  for(unsigned int p=0; p<H.n_elem; p++){
+    for(unsigned int j=0; j<alphas.length(); j++){
+      intervals_EWC(p,j)=b_H(p)-t_nu_quantiles(j)*std_errors_individual_vars_EWC(p);
+      intervals_EWC(p, 2*alphas.length()-j)=b_H(p)+t_nu_quantiles(j)*std_errors_individual_vars_EWC(p);
+    }
+  }
+  arma::mat intervals_unscaled_EWC=intervals_EWC; //unscaling works with just the normal unscale function
+  for(int j=0; j<2*alphas.length()+1; j++){
+    intervals_unscaled_EWC.col(j)=unscale(s, intervals_EWC.col(j), H, demean, scale);
+  }
+  ////////////////////////////////////////////////////////////////////
+
+
+  ////this part deals with the fixed-b asymptotics of NW
+  arma::mat Omegahat_NWfb=LRVestimator(uhat, X_, N_, T_, N_, 1/2, 1.3);
+  double S=std::ceil(1.3*pow(double(T_),1/2));
+  double a0=1.96, a1=2.9694, a2=0.3142, a3=-0.3427; //taken from Table 1 of Kiefer and Vogelsang (2005)
+  double b=S/T_;
+  double cv=a0+a1*b+a2*pow(b,2)+a3*pow(b,3);
+  arma::mat covariance_NWfb=Thetahat*Omegahat_NWfb*Thetahat;
+  arma::vec std_errors_individual_vars_NWfb(H.n_elem);
+  for(unsigned int i=0; i<H.n_elem; i++){
+    std_errors_individual_vars_NWfb(i)=sqrt( as_scalar(covariance_NWfb(i,i))/double(T_) );
+  }
+  arma::vec std_errors_individual_vars_unscale_NWfb=unscale(s, std_errors_individual_vars_NWfb, H, demean, scale);
+  arma::mat intervals_NWfb(H.n_elem, 2*1+1); // intervals for individual variables
+  intervals_NWfb.col(1)=b_H;
+  for(unsigned int p=0; p<H.n_elem; p++){
+    for(unsigned int j=0; j<1; j++){
+      intervals_NWfb(p,j)=b_H(p)-cv*std_errors_individual_vars_NWfb(p);
+      intervals_NWfb(p, 2*1-j)=b_H(p)+cv*std_errors_individual_vars_NWfb(p);
+    }
+  }
+  arma::mat intervals_unscaled_NWfb=intervals_NWfb; //unscaling works with just the normal unscale function
+  for(int j=0; j<2*1+1; j++){
+    intervals_unscaled_NWfb.col(j)=unscale(s, intervals_NWfb.col(j), H, demean, scale);
+  }
+  //////////////////////////////////////////////////////
+
   reg_output o;
   o.Omegahat=Omegahat;
   o.z_quantiles=z_quantiles;
   o.intervals=intervals;
   o.intervals_unscaled=intervals_unscaled;
+  o.intervals_unscaled_EWC=intervals_unscaled_EWC;
+  o.intervals_unscaled_NWfb=intervals_unscaled_NWfb;
   o.betahat=betahat;
   o.b_H=b_H;
   o.b_H_unscaled=b_H_unscaled;
@@ -1580,33 +1631,52 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
   if(sum(abs(x-y))<1e-8){
     is_same=true;
   }
-  //estimate the LP at horizon 0 and save the nodewise parts
-  if(is_same){
-    w=join_horiz(r,x,q);//skip y in w, so we don't have two identical variables there
-  }else{
-    w=join_horiz(r,x,y,q);
-  }
-  w_lags=Rcpp_make_lags(w, lags);
-  if(state_dummy_.isNotNull()){ ////if y_predetermined=T, add y to the RHS contemporaneously
-    if(y_predetermined){
+
+  //Set up the regressors
+  if(is_same){ //x=y, y is not predetermined w.r.t. x or vice versa
+
+    w=join_horiz(r,x,q); //skip the y, because it would be the same variable twice
+
+    if(state_dummy_.isNotNull()){ //if there are states
       regressors=join_horiz(dummify(state_dummy, x),
                             state_dummy.cols(0, state_dummy.n_cols-2),
-                            dummify(state_dummy, join_horiz(r, w_lags,y)));
-    }else{
-      regressors=join_horiz(dummify(state_dummy, x),
-                            state_dummy.cols(0, state_dummy.n_cols-2),
-                            dummify(state_dummy, join_horiz(r, w_lags)));
-    }
-  }else{
-    if(y_predetermined){
-      regressors=join_horiz(x, r, w_lags, y);
-    }else{
+                            dummify(state_dummy, join_horiz(r, w_lags))); //y is NOT included contemporaneously, because x=y already is
+    }else{//if there are no states
       regressors=join_horiz(x, r, w_lags);
     }
+  }else{ //x and y are different
+
+    w=join_horiz(r,x,y,q); //include both x and y
+
+    if(y_predetermined){ //y is predetermined wrt x.  //y IS included contemporaneously. since it is assumed to be predetermined wrt x, there are no endogeneity issues with including it
+      if(state_dummy_.isNotNull()){ //if there are states
+        regressors=join_horiz(dummify(state_dummy, x),
+                              state_dummy.cols(0, state_dummy.n_cols-2),
+                              dummify(state_dummy, join_horiz(r, w_lags,y)));
+      }else{//if there are no states
+        regressors=join_horiz(x, r, w_lags, y);
+      }
+    }else{// x is predetermined wrt y, this is the standard setup in eq. 1 of PM&W
+      if(state_dummy_.isNotNull()){ //if there are states
+        regressors=join_horiz(dummify(state_dummy, x),
+                              state_dummy.cols(0, state_dummy.n_cols-2),
+                              dummify(state_dummy, join_horiz(r, w_lags))); //y is NOT included contemporaneously, because there would be issues with endogeneity
+      }else{//if there are no states
+        regressors=join_horiz(x, r, w_lags);
+      }
+    }
   }
-  if(is_same && states==1){//If x and y are the same, estimate at horizon 1. The only parts taken from this step will be the nodewise regressions.
+
+  //Setting up the dependent for the initial estimation
+
+  //We actually estimate the impulse responses at horizon 0 if we're in the standard PM&W setup: y_predetermined=FALSE, and y!=x
+  //We also estimate at horizon 0 if y_predetermined=FALSE and we have multiple states (even when y=x)
+  if(!y_predetermined && (!is_same || states>1)){
+    dependent=y; //cumulating doesn't matter at horizon 0
+    joint_trimmed=join_horiz(dependent,regressors); joint_trimmed=joint_trimmed.rows(lags,T_-0-1);
+  }else{ //in other cases, we want to run a dummy regression at horizon 1, just to get the nodewise parts
     dependent=mat(T_,1,fill::zeros);
-    if(cumulate_y){
+    if(cumulate_y){ //cumulation matters at horizon 1
       for(unsigned int i=0; i<T_-1;i++){
         dependent.row(i)=sum(y.rows(i,i+1));
       }
@@ -1616,15 +1686,16 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
       }
     }
     joint_trimmed=join_horiz(dependent,regressors); joint_trimmed=joint_trimmed.rows(lags,T_-1-1);
-  }else{//If they're different, estimate horizon 0 normally.
-    dependent=y;
-    joint_trimmed=join_horiz(dependent,regressors); joint_trimmed=joint_trimmed.rows(lags,T_-0-1);
   }
   dependent_trimmed=joint_trimmed.col(0);
   regressors_trimmed=joint_trimmed.cols(1, joint_trimmed.n_cols-1);
+
+
+
+  // run the actual estimation
   reg_output d;
-  if(OLS && regressors_trimmed.n_cols>regressors_trimmed.n_rows){
-    warning("number of variables larger than sample size, taking OLS=FALSE to prevent errors");
+  if(OLS && regressors_trimmed.n_cols>regressors_trimmed.n_rows){ //if the sample size is too small, don't do OLS. This also switches OLS off for all later steps
+    //warning("number of variables larger than sample size, taking OLS=FALSE to prevent errors");
     OLS=false;
   }
   if(OLS){
@@ -1645,8 +1716,8 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     d.z_quantiles=pdli.z_quantiles;
     d.intervals=pdli.intervals;
     d.intervals_unscaled=pdli.intervals_unscaled;
-    d.intervals_unscaled_EWC=pdli.intervals_unscaled_EWC;///////////////////////////////
-    d.intervals_unscaled_NWfb=pdli.intervals_unscaled_NWfb;////////////////////////////
+    d.intervals_unscaled_EWC=pdli.intervals_unscaled_EWC;
+    d.intervals_unscaled_NWfb=pdli.intervals_unscaled_NWfb;
     d.betahat=pdli.betahat;
     d.b_H=pdli.bhat_1;
     d.b_H_unscaled=pdli.bhat_1_unscaled;
@@ -1654,21 +1725,42 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
   }
   arma::mat betahats(regressors_trimmed.n_cols,hmax+1,fill::zeros);
   betahats.col(0)=d.betahat;
-  for(unsigned int i=0; i<states; i++){
-    if(y_predetermined){
-    }else if(is_same && states==1){
-      //intervals.slice(i)=mat(hmax+1,1+2*as<arma::mat>(alphas).n_elem-1, fill::ones);
-      arma::mat mat_of_ones(1,1+2*as<arma::mat>(alphas).n_elem, fill::ones);
-      arma::mat mat_of_ones_NWfb(1,1+2*1, fill::ones);//////////////////////
+
+  //fill in the results if they're needed
+  if(!y_predetermined && (!is_same || states>1)){
+      for(unsigned int i=0; i<states; i++){
+        intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);
+        intervals_EWC(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled_EWC).row(i);
+        intervals_NWfb(span(0,0),span(0,1+2*1-1),span(i,i))=(d.intervals_unscaled_NWfb).row(i);
+    }
+  }
+
+  //filling in either 1's or 0's in other cases
+  if(!y_predetermined && is_same && states==1){ //fill with 1's
+    arma::mat mat_of_ones(1,1+2*as<arma::mat>(alphas).n_elem, fill::ones);
+    arma::mat mat_of_ones_NWfb(1,1+2*1, fill::ones);
+    for(unsigned int i=0; i<states; i++){ //note that this loop is only over 1 element
       intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=mat_of_ones.row(0);
       intervals_EWC(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=mat_of_ones.row(0);//////////////////
       intervals_NWfb(span(0,0),span(0,1+2*1-1),span(i,i))=mat_of_ones_NWfb.row(0);//////////////////
-    }else{
-      intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);//this happens when y_predetermined=F and y!=x
-      intervals_EWC(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled_EWC).row(i);///////
-      intervals_NWfb(span(0,0),span(0,1+2*1-1),span(i,i))=(d.intervals_unscaled_NWfb).row(i);///////
     }
   }
+
+  if(y_predetermined){
+    arma::mat mat_of_ones(1,1+2*as<arma::mat>(alphas).n_elem, fill::ones);
+    arma::mat mat_of_ones_NWfb(1,1+2*1, fill::ones);
+    if(is_same){//fill with 1's
+      for(unsigned int i=0; i<states; i++){
+        intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);
+        intervals_EWC(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled_EWC).row(i);
+        intervals_NWfb(span(0,0),span(0,1+2*1-1),span(i,i))=(d.intervals_unscaled_NWfb).row(i);
+      }
+    }else{ //fill with 0's
+      //do nothing, because the matrices already start out filled with 0's
+    }
+  }
+
+  //now estimate the nodewise regressions at different horizons
   Progress p(hmax, progress_bar);
   if(threads>0){
 #ifdef _OPENMP
