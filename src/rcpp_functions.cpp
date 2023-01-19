@@ -1636,7 +1636,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
   if(is_same){ //x=y, y is not predetermined w.r.t. x or vice versa
 
     w=join_horiz(r,x,q); //skip the y, because it would be the same variable twice
-
+    w_lags=Rcpp_make_lags(w,lags);
     if(state_dummy_.isNotNull()){ //if there are states
       regressors=join_horiz(dummify(state_dummy, x),
                             state_dummy.cols(0, state_dummy.n_cols-2),
@@ -1647,7 +1647,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
   }else{ //x and y are different
 
     w=join_horiz(r,x,y,q); //include both x and y
-
+    w_lags=Rcpp_make_lags(w,lags);
     if(y_predetermined){ //y is predetermined wrt x.  //y IS included contemporaneously. since it is assumed to be predetermined wrt x, there are no endogeneity issues with including it
       if(state_dummy_.isNotNull()){ //if there are states
         regressors=join_horiz(dummify(state_dummy, x),
