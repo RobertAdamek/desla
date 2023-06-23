@@ -172,13 +172,14 @@ desla=function(X, y, H,
   }else{
     threads <- 0
   }
+  seeds <- sample(1e8, h+1) #seeds
   manual_Thetahat_=NULL
   manual_Upsilonhat_inv_=NULL
   manual_nw_residuals_=NULL
 
   PDLI=.Rwrap_partial_desparsified_lasso_inference(X, y, H, demean, scale, init_partial, nw_partials, init_grid, nw_grids, init_selection_type, nw_selection_types,
                                                    init_nonzero_limit, nw_nonzero_limits, init_opt_threshold, nw_opt_thresholds, init_opt_type, nw_opt_types,
-                                                   LRVtrunc, T_multiplier, alphas, R, q, PI_constant, PI_probability, progress_bar, threads,
+                                                   LRVtrunc, T_multiplier, alphas, R, q, PI_constant, PI_probability, progress_bar, threads, seeds,
                                                    manual_Thetahat_, manual_Upsilonhat_inv_, manual_nw_residuals_)
   CInames=rep("",2*length(alphas)+1)
   CInames[length(alphas)+1]="bhat"
@@ -326,10 +327,16 @@ HDLP=function(x, y, r=NULL, q=NULL, state_variables=NULL,
   }else{
     threads <- 0
   }
+  if(is.null(state_variables)){
+    h<-1
+  }else{
+    h<-2*ncol(state_variables)-1
+  }
+  seeds_mat <- matrix(data=sample(1e8, (h+1)*(hmax+1)), nrow=h+1, ncol=hmax+1)
   LP=.Rcpp_local_projection_state_dependent(r, x, y, q, state_variables,
                                             y_predetermined,cumulate_y, hmax,
                                             lags,alphas, init_partial, selection, PI_constant,
-                                            progress_bar, OLS, threads)
+                                            progress_bar, OLS, threads, seeds_mat)
   CInames=rep("",2*length(alphas)+1)
   CInames[length(alphas)+1]="bhat"
   for(i in 1:length(alphas)){
@@ -716,3 +723,4 @@ print.desla <- function (x, digits = max(3L, getOption("digits") - 3L),
   y <- summary(x, ...)
   print(y, show_selected = show_selected, ...)
 }
+

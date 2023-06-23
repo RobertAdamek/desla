@@ -15,7 +15,8 @@ RoxygenNote: 7.2.1
 LinkingTo: 
     Rcpp,
     RcppArmadillo,
-    RcppProgress
+    RcppProgress,
+    sitmo
 Imports: 
     Rcpp,
     Rdpack,
