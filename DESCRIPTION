@@ -21,8 +21,7 @@ Imports:
     Rcpp,
     Rdpack,
     stats,
-    parallelly,
-    sitmo
+    parallelly
 URL: https://github.com/RobertAdamek/desla
 BugReports: https://github.com/RobertAdamek/desla/issues
 Suggests:
