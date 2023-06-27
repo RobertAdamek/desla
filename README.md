@@ -80,24 +80,29 @@ summary(d)
 #> 
 #> 
 #> Coefficients:
-#>    Estimate Std. Error t value Pr(>|t|)    
-#> X1   1.0787     0.1310   8.236   <2e-16 ***
-#> X2   1.9750     0.1392  14.185   <2e-16 ***
-#> X3   2.9454     0.1324  22.247   <2e-16 ***
+#>    Estimate Std. Error z value Pr(>|z|)    
+#> X1   1.0788     0.1304   8.272   <2e-16 ***
+#> X2   1.9753     0.1386  14.247   <2e-16 ***
+#> X3   2.9455     0.1320  22.317   <2e-16 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
+#> Joint test of significance:
+#>                                
+#> Joint test statistic  6.232e+02
+#> p-value              9.436e-135
+#> 
 #> Selected lambdas:
 #>                           
-#> Initial regression 0.06735
-#> X1                 0.29252
-#> X2                 0.28642
-#> X3                 0.27889
+#> Initial regression 0.06688
+#> X1                 0.28620
+#> X2                 0.28734
+#> X3                 0.28570
 #> 
 #> Selected variables:
 #>                                  
 #> Initial regression X1, X2, X3, X4
-#> X1                           none
+#> X1                            X91
 #> X2                           none
 #> X3                           none
 ```
@@ -114,16 +119,16 @@ implements the high-dimensional local projections detailed in Adamek et
 al. (2022b). As an example, consider the response of `y` to a shock in
 the fourth predictor variable, and imagine that:
 
--   We classify the first three predictor variables as “slow moving” and
-    enter the equation contemporaneously (ordered before the fourth
-    variable);
+- We classify the first three predictor variables as “slow moving” and
+  enter the equation contemporaneously (ordered before the fourth
+  variable);
 
--   The 5th up to 10th variables are classified as “fast moving” and
-    only enter with a lag (thus ordered after the fourth variable). Then
-    the following lines of code obtain the impulse responses with two
-    lags included, up to a maximum horizon of 5. By applying the plot
-    function to the output of the HDLP function, the corresponding
-    impulse response function can be visualized.
+- The 5th up to 10th variables are classified as “fast moving” and only
+  enter with a lag (thus ordered after the fourth variable). Then the
+  following lines of code obtain the impulse responses with two lags
+  included, up to a maximum horizon of 5. By applying the plot function
+  to the output of the HDLP function, the corresponding impulse response
+  function can be visualized.
 
 ``` r
 h<-HDLP(x=X[,4], y=y, q=X[,1:3], r = X[,6:10], hmax=5, lags=2)
@@ -136,19 +141,19 @@ The function also implements the state-based local projections of Ramey
 & Zubairy (2018) with the optional `state_variables` argument. State
 variables can be created in two ways:
 
--   A matrix with dummy variables, where each column indicates a 1 (or
-    `TRUE`) for the observations belonig to that state:
+- A matrix with dummy variables, where each column indicates a 1 (or
+  `TRUE`) for the observations belongig to that state:
 
 ``` r
 s_dummies <- matrix(c(rep(1, 50), rep(0, 100), rep(1, 50)), ncol=2, 
                     dimnames = list(NULL, c("A","B")))
 ```
 
--   A categorical variable (factor) where each entry indicates the state
-    of the corresponding observation. This is particularly useful in the
-    case of multiple state variables (which can be combined in a data
-    frame), as the function then automatically creates the states as
-    interactions between them.
+- A categorical variable (factor) where each entry indicates the state
+  of the corresponding observation. This is particularly useful in the
+  case of multiple state variables (which can be combined in a data
+  frame), as the function then automatically creates the states as
+  interactions between them.
 
 ``` r
 # Factor corresponding to s_dummies above
