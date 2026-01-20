@@ -12,8 +12,8 @@
 // [[Rcpp::depends(RcppProgress)]]
 
 using namespace Rcpp;
-using namespace arma;
-using namespace std;
+//using namespace arma;
+//using namespace std;
 
 //struct definitions
 
@@ -152,14 +152,14 @@ struct simulation_output{
   unsigned int h, P, M;
   arma::vec Ns, Ts;
   arma::uvec H;
-  cube true_parameters_H;
+  arma::cube true_parameters_H;
   arma::vec alphas;
   arma::mat coverages;
-  cube upper_intervals, lower_intervals;
+  arma::cube upper_intervals, lower_intervals;
   arma::mat interval_widths_mean, interval_widths_median;
-  cube init_lambda_poss, nw_lambda_poss;
-  cube init_nonzeros, nw_nonzeros;
-  cube betahats, bhats;
+  arma::cube init_lambda_poss, nw_lambda_poss;
+  arma::cube init_nonzeros, nw_nonzeros;
+  arma::cube betahats, bhats;
   arma::mat chi2_rejection_rate;
   //List debug;
 };
@@ -304,13 +304,13 @@ standardize_output standardize(const arma::mat& X, const arma::vec& y, const boo
   standardize_output ret;
   if(demean || scale){
     ret.y_mean=mean(y);
-    ret.X_means=arma::vec(N, fill::zeros);
+    ret.X_means=arma::vec(N, arma::fill::zeros);
     for(unsigned int j=0; j<N; j++){
       ret.X_means(j)=mean(X.col(j));
     }
   }
   if(scale){
-    ret.X_sds=arma::vec(N, fill::zeros);
+    ret.X_sds=arma::vec(N, arma::fill::zeros);
     double sum=0;
     for(unsigned int t=0; t<T_; t++){
       sum+=pow(y(t)-ret.y_mean,2);
@@ -324,8 +324,8 @@ standardize_output standardize(const arma::mat& X, const arma::vec& y, const boo
       ret.X_sds(j)=sqrt(sum/double(T_));
     }
   }
-  ret.y_scaled=arma::vec(T_, fill::zeros);
-  ret.X_scaled=arma::mat(T_,N, fill::zeros);
+  ret.y_scaled=arma::vec(T_, arma::fill::zeros);
+  ret.X_scaled=arma::mat(T_,N, arma::fill::zeros);
   if(demean && scale){
     for(unsigned int t=0; t<T_; t++){
       ret.y_scaled(t)=(y(t)-ret.y_mean)/ret.y_sd;
@@ -376,7 +376,7 @@ grids_output build_gridsXy(const unsigned int& T_, const unsigned int N, const u
   for(i=0; i<h; i++){
     j=H(i);
     X_j=(s.X_scaled).col(j);
-    index_minusj=linspace<arma::uvec>(0,N-1,N); index_minusj.shed_row(j);
+    index_minusj=arma::linspace<arma::uvec>(0,N-1,N); index_minusj.shed_row(j);
     X_minusj=(s.X_scaled).cols(index_minusj);
     lambda_max=max(abs(X_minusj.t()*X_j)/double(T_));
     nw_grids.row(i)=buildgrid(size,lambda_max,1.0/double(T_*10.0)).t();
@@ -414,10 +414,10 @@ arma::uvec unique_match(arma::uvec& minusj, arma::uvec& Hminusj){
 
 arma::vec q_sim_mvnorm_sparse_chol_shrink(const arma::mat& Sigma, const int& S, const arma::vec& q, const double& M = 0.0001) {
   int N = Sigma.n_rows;
-  arma::sp_mat Sigma_sqrt = sp_mat(chol(Sigma + M * arma::eye(arma::size(Sigma))));
+  arma::sp_mat Sigma_sqrt = arma::sp_mat(chol(Sigma + M * arma::eye(arma::size(Sigma))));
   Rcpp::NumericVector draw = Rcpp::rnorm(S * N);
   arma::mat Z = arma::mat(draw.begin(), S, N, false, true);
-  //arma::mat Z= randn(S,N);
+  //arma::mat Z= arma::randn(S,N);
   arma::mat Y = Z * Sigma_sqrt;
   arma::vec X = arma::max(abs(Y), 1);
   arma::vec quant = arma::quantile(X, q);
@@ -427,15 +427,15 @@ arma::vec q_sim_mvnorm_sparse_chol_shrink(const arma::mat& Sigma, const int& S, 
 arma::mat coordinate_descent_naive(const arma::mat& X, const arma::colvec& y, const arma::vec& grid, const double& opt_threshold,
                                    const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize){
   arma::mat betahats(N,gridsize);
-  arma::vec betahat(N,fill::zeros);
-  arma::vec betahat_old(N,fill::zeros);
+  arma::vec betahat(N,arma::fill::zeros);
+  arma::vec betahat_old(N,arma::fill::zeros);
   unsigned int g,j,k;
   arma::uvec Active_set; Active_set.reset(); //see if this is necessary
   arma::uvec temp_Active_set;
   unsigned int active_length=0, nonactive_length=N;
-  arma::uvec Nonactive_set=linspace<arma::uvec>(0,N-1,N);
+  arma::uvec Nonactive_set=arma::linspace<arma::uvec>(0,N-1,N);
   double change=opt_threshold+1;
-  arma::vec x_crossprods(N,fill::zeros);
+  arma::vec x_crossprods(N,arma::fill::zeros);
   arma::vec x_j(T_);
   for(j=0;j<N;j++){
     x_j=X.col(j);
@@ -462,7 +462,7 @@ arma::mat coordinate_descent_naive(const arma::mat& X, const arma::colvec& y, co
         full_res=partial_res-X.col(j)*betahat(j);// only need to update if this is nonzero
       }
     }
-    Nonactive_set=linspace<arma::uvec>(0,N-1,N); Nonactive_set.shed_rows(Active_set); //update nonactive set
+    Nonactive_set=arma::linspace<arma::uvec>(0,N-1,N); Nonactive_set.shed_rows(Active_set); //update nonactive set
     change=opt_threshold+1;
     while(change>opt_threshold){
       //for loop through parameters of the active set
@@ -484,15 +484,15 @@ arma::mat coordinate_descent_naive(const arma::mat& X, const arma::colvec& y, co
 arma::mat coordinate_descent_covariance(const arma::mat& X, const arma::colvec& y, const arma::vec& grid, const double& opt_threshold,
                                         const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize){
   arma::mat betahat_mat(N,gridsize);
-  arma::vec betahat(N,fill::zeros);
-  arma::vec betahat_old(N,fill::zeros);
+  arma::vec betahat(N,arma::fill::zeros);
+  arma::vec betahat_old(N,arma::fill::zeros);
   unsigned int g,j,k,l,a,b;
   arma::uvec Active_set;
   arma::uvec temp_Active_set;
   unsigned int active_length=0, nonactive_length=N;
-  arma::uvec Nonactive_set=linspace<arma::uvec>(0,N-1,N);
+  arma::uvec Nonactive_set=arma::linspace<arma::uvec>(0,N-1,N);
   double change=opt_threshold+1;
-  arma::mat x_crossprods(N,N,fill::zeros);
+  arma::mat x_crossprods(N,N,arma::fill::zeros);
   arma::vec x_j(T_);
   for(j=0;j<N;j++){
     x_j=X.col(j);
@@ -529,7 +529,7 @@ arma::mat coordinate_descent_covariance(const arma::mat& X, const arma::colvec& 
       }
 
     }
-    Nonactive_set=linspace<arma::uvec>(0,N-1,N); Nonactive_set.shed_rows(Active_set); //update nonactive set
+    Nonactive_set=arma::linspace<arma::uvec>(0,N-1,N); Nonactive_set.shed_rows(Active_set); //update nonactive set
     change=opt_threshold+1;
     //optimize
     while(change>opt_threshold){
@@ -554,9 +554,9 @@ arma::mat coordinate_descent_covariance(const arma::mat& X, const arma::colvec& 
   return betahat_mat;
 }
 
-double Andrews91_truncation(const mat& What, const unsigned int& T_, const unsigned int& h){
+double Andrews91_truncation(const arma::mat& What, const unsigned int& T_, const unsigned int& h){
   arma::vec rhos(h), variances(h);
-  arma::vec y_T(T_-1), y_Tm1(T_-1), constant(T_-1,fill::ones), residual(T_-1);
+  arma::vec y_T(T_-1), y_Tm1(T_-1), constant(T_-1,arma::fill::ones), residual(T_-1);
   arma::mat X_T(T_-1,2);
   arma::vec beta(2);
   for(unsigned int i=0; i<h; i++){
@@ -578,11 +578,11 @@ double Andrews91_truncation(const mat& What, const unsigned int& T_, const unsig
   return S_T;
 }
 
-mat LRVestimator_old(const vec& init_residual, const mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
-  mat Omegahat(h,h,fill::zeros);
-  vec uhat=init_residual;
-  mat vhat=nw_residuals;
-  mat What(T_,h);
+arma::mat LRVestimator_old(const arma::vec& init_residual, const arma::mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
+  arma::mat Omegahat(h,h,arma::fill::zeros);
+  arma::vec uhat=init_residual;
+  arma::mat vhat=nw_residuals;
+  arma::mat What(T_,h);
   for(unsigned int a=0;a<h;a++){
     What.col(a)=uhat%vhat.col(a);
   }
@@ -592,21 +592,21 @@ mat LRVestimator_old(const vec& init_residual, const mat& nw_residuals, const un
   }else{
     Q_T=std::ceil(pow(T_multiplier*double(T_),LRVtrunc));
   }
-  vec Whatbar=mean(What,0).as_col();
+  arma::vec Whatbar=mean(What,0).as_col();
   //this is not memory efficient, I don't need all the xi_l^(j,k) at once
-  cube xi(h,h,Q_T);
+  arma::cube xi(h,h,Q_T);
   for(unsigned int a=0;a<h;a++){
     for(unsigned int b=0;b<h;b++){
       for(unsigned int l=0;l<=Q_T-1;l++){
         //I think I need to keep redefining them since their sizes change
-        vec W_j=What.submat(l,a,(T_-1),a);
-        vec W_kminusl=What.submat(0,b,(T_-l-1),b);
-        xi(a,b,l)=as_scalar( (W_j-as_scalar(Whatbar[a])).t()*(W_kminusl-as_scalar(Whatbar[b])) )/(T_-l);
+        arma::vec W_j=What.submat(l,a,(T_-1),a);
+        arma::vec W_kminusl=What.submat(0,b,(T_-l-1),b);
+        xi(a,b,l)=arma::as_scalar( (W_j-arma::as_scalar(Whatbar[a])).t()*(W_kminusl-arma::as_scalar(Whatbar[b])) )/(T_-l);
       }
     }
   }
   //build the lower triangular part of Omegahat
-  vec kernel(Q_T);
+  arma::vec kernel(Q_T);
   kernel(0)=0; //sort out the calculation of the terms for l>=1 with a loop, because the first element is treated differently
   if(Q_T>1){
     for(double l=1;l<Q_T;l++){
@@ -615,20 +615,20 @@ mat LRVestimator_old(const vec& init_residual, const mat& nw_residuals, const un
   }
   for(unsigned int a=0;a<h;a++){
     for(unsigned int b=0;b<=a;b++){
-      vec xijk=xi.tube(a,b);
-      vec xikj=xi.tube(b,a);
+      arma::vec xijk=xi.tube(a,b);
+      arma::vec xikj=xi.tube(b,a);
       Omegahat(b,a)=Omegahat(a,b)=xijk(0)+as_scalar( kernel.t()*(xijk+xikj) );
     }
   }
   return Omegahat;
 }
 
-mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
-  mat Omegahat(h,h,fill::zeros);
-  vec uhat=init_residual;
-  mat vhat=nw_residuals;
-  mat What(T_,h);
-  mat Xi_ell(h,h);
+arma::mat LRVestimator(const arma::vec& init_residual, const arma::mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
+  arma::mat Omegahat(h,h,arma::fill::zeros);
+  arma::vec uhat=init_residual;
+  arma::mat vhat=nw_residuals;
+  arma::mat What(T_,h);
+  arma::mat Xi_ell(h,h);
   for(unsigned int a=0;a<h;a++){
     What.col(a)=uhat%vhat.col(a);
   }
@@ -658,12 +658,12 @@ mat LRVestimator(const vec& init_residual, const mat& nw_residuals, const unsign
   return(Omegahat);
 }
 
-mat LRVestimatorEWC(const vec& init_residual, const mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
-  mat Omegahat(h,h,fill::zeros);
-  vec uhat=init_residual;
-  mat vhat=nw_residuals;
-  mat What(T_,h);
-  mat Xi_ell(h,h);
+arma::mat LRVestimatorEWC(const arma::vec& init_residual, const arma::mat& nw_residuals, const unsigned int& N, const unsigned int& T_, const unsigned int& h, const double& LRVtrunc, const double& T_multiplier){
+  arma::mat Omegahat(h,h,arma::fill::zeros);
+  arma::vec uhat=init_residual;
+  arma::mat vhat=nw_residuals;
+  arma::mat What(T_,h);
+  arma::mat Xi_ell(h,h);
   for(unsigned int a=0;a<h;a++){
     What.col(a)=uhat%vhat.col(a);
   }
@@ -672,10 +672,10 @@ mat LRVestimatorEWC(const vec& init_residual, const mat& nw_residuals, const uns
   Q_T_double=std::ceil(T_multiplier*pow(double(T_),LRVtrunc));
   Q_T= (int) Q_T_double;
 
-  vec Lambda_hat(h, fill::zeros);
+  arma::vec Lambda_hat(h, arma::fill::zeros);
   for(int j=1; j<=Q_T; j++){
     for(unsigned int t=1; t<=T_; t++){
-      Lambda_hat+=(What.row(t-1)).t()*sqrt(2.0/double(T_))*cos(datum::pi*j*(double(t)-1.0/2.0)/double(T_));
+      Lambda_hat+=(What.row(t-1)).t()*sqrt(2.0/double(T_))*cos(M_PI*j*(double(t)-1.0/2.0)/double(T_));
     }
     Omegahat+=Lambda_hat*Lambda_hat.t()/Q_T_double;
   }
@@ -684,7 +684,7 @@ mat LRVestimatorEWC(const vec& init_residual, const mat& nw_residuals, const uns
 
 arma::vec unscale(const standardize_output s, const arma::vec& beta_H, const arma::uvec& H, const bool& demean, const bool& scale){
   unsigned int h=H.n_elem;
-  arma::vec unscaled_beta_H(h, fill::zeros);
+  arma::vec unscaled_beta_H(h, arma::fill::zeros);
   if(scale){
     for(unsigned int i=0; i<h; i++){
       unsigned int j=H(i);
@@ -712,8 +712,8 @@ arma::mat custom_rnorm_sitmo(const unsigned int& r, const unsigned int& c, const
     //turn 32 bit random number to uniform, and Box-Muller transform into gaussian
     double u1 = double(eng())/sitmo::prng::max();
     double u2 = double(eng())/sitmo::prng::max();
-    draw(2*i) = sqrt(-2*log(u1))*cos(2*datum::pi*u2);
-    draw(2*i+1) = sqrt(-2*log(u1))*sin(2*datum::pi*u2);
+    draw(2*i) = sqrt(-2*log(u1))*cos(2*M_PI*u2);
+    draw(2*i+1) = sqrt(-2*log(u1))*sin(2*M_PI*u2);
 
   }
   //const arma::mat Z = arma::mat(draw.begin(), r, c, false, true);
@@ -788,12 +788,12 @@ partial_lasso_output partial_lasso(const arma::mat& X, const arma::colvec& y, co
   arma::mat betahats_1(h,gridsize);
   arma::mat betahats_2(N-h,gridsize);
   arma::mat X_1=X.cols(H);
-  arma::uvec minusH=linspace<arma::uvec>(0,N-1,N); minusH.shed_rows(H);
+  arma::uvec minusH=arma::linspace<arma::uvec>(0,N-1,N); minusH.shed_rows(H);
   arma::mat X_2=X.cols(minusH);
   lasso_output L;
   if(partial==true && h>0){
     arma::mat X1X1inv=inv(X_1.t()*X_1);
-    arma::mat M_X1=(mat(T_,T_,fill::eye)-X_1*X1X1inv*X_1.t());
+    arma::mat M_X1=(arma::mat(T_,T_,arma::fill::eye)-X_1*X1X1inv*X_1.t());
     arma::mat resX_2=M_X1*X_2;
     arma::vec resy=M_X1*y;
     L=lasso(resX_2, resy, grid,
@@ -836,7 +836,7 @@ partial_lasso_output partial_lasso(const arma::mat& X, const arma::colvec& y, co
   return(ret);
 }
 
-selection_output selectPI(const mat& betahats, const mat& X, const vec& y, const arma::uvec& H, const bool& partial, const vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha){
+selection_output selectPI(const arma::mat& betahats, const arma::mat& X, const arma::vec& y, const arma::uvec& H, const bool& partial, const arma::vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha){
   unsigned int K=15; //max iterations
   double improvement_threshold=0.01; //if the % change in lambda is less than this, stop iterating
   unsigned int B=1000; //how many simulations are used to estimate the quantiles of the gaussian maximum
@@ -856,8 +856,8 @@ selection_output selectPI(const mat& betahats, const mat& X, const vec& y, const
   arma::vec eigval(N);
   arma::mat eigvec(N,N);
   arma::mat sqrt_cov(N,N);
-  arma::mat sqrt_diag_eigval(N,N,fill::zeros);
-  arma::mat random_gaussians=randn(N,B);
+  arma::mat sqrt_diag_eigval(N,N,arma::fill::zeros);
+  arma::mat random_gaussians=arma::randn(N,B);
   unsigned int iteration=K;
   //loop where we iterate to find the best lambda
   for(unsigned int k=0; k<K; k++){
@@ -866,7 +866,7 @@ selection_output selectPI(const mat& betahats, const mat& X, const vec& y, const
       LRCovariance=LRVestimator(uhat, X, N, T_, N, 0, 0);
       eig_sym(eigval, eigvec, LRCovariance);
       for(unsigned int i=0; i<N; i++){
-        sqrt_diag_eigval(i,i)=sqrt(max(0.0,eigval(i))); //negative eigenvalues replaced by 0
+        sqrt_diag_eigval(i,i)=sqrt(std::max(0.0,eigval(i))); //negative eigenvalues replaced by 0
       }
       sqrt_cov=eigvec*sqrt_diag_eigval;
       Gs=sqrt_cov*random_gaussians; //generate the correlated gaussians
@@ -914,7 +914,7 @@ selection_output selectPI(const mat& betahats, const mat& X, const vec& y, const
   return ret;
 }
 
-selection_output selectPI_new(const mat& betahats, const mat& X, const vec& y, const arma::uvec& H, const bool& partial, const vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha){
+selection_output selectPI_new(const arma::mat& betahats, const arma::mat& X, const arma::vec& y, const arma::uvec& H, const bool& partial, const arma::vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha){
   unsigned int K=15; //max iterations
   double improvement_threshold=0.01; //if the % change in lambda is less than this, stop iterating
   unsigned int B=1000; //how many simulations are used to estimate the quantiles of the gaussian maximum
@@ -974,7 +974,7 @@ selection_output selectPI_new(const mat& betahats, const mat& X, const vec& y, c
   return ret;
 }
 
-selection_output selectPI_seed(const mat& betahats, const mat& X, const vec& y, const arma::uvec& H, const bool& partial, const vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha, unsigned int active_seed){
+selection_output selectPI_seed(const arma::mat& betahats, const arma::mat& X, const arma::vec& y, const arma::uvec& H, const bool& partial, const arma::vec& grid, const unsigned int& N, const unsigned int& T_, const unsigned int& gridsize, const double& nonzero_limit, const double& c, const double& alpha, unsigned int active_seed){
   unsigned int K=15; //max iterations
   double improvement_threshold=0.01; //if the % change in lambda is less than this, stop iterating
   unsigned int B=1000; //how many simulations are used to estimate the quantiles of the gaussian maximum
@@ -994,8 +994,8 @@ selection_output selectPI_seed(const mat& betahats, const mat& X, const vec& y, 
   arma::vec eigval(N);
   arma::mat eigvec(N,N);
   arma::mat sqrt_cov(N,N);
-  arma::mat sqrt_diag_eigval(N,N,fill::zeros);
-  //arma::mat random_gaussians=randn(N,B);
+  arma::mat sqrt_diag_eigval(N,N,arma::fill::zeros);
+  //arma::mat random_gaussians=arma::randn(N,B);
   arma::mat random_gaussians=custom_rnorm_sitmo(N, B, active_seed, 0, 1);
   unsigned int iteration=K;
   //loop where we iterate to find the best lambda
@@ -1005,7 +1005,7 @@ selection_output selectPI_seed(const mat& betahats, const mat& X, const vec& y, 
       LRCovariance=LRVestimator(uhat, X, N, T_, N, 0, 0);
       eig_sym(eigval, eigvec, LRCovariance);
       for(unsigned int i=0; i<N; i++){
-        sqrt_diag_eigval(i,i)=sqrt(max(0.0,eigval(i))); //negative eigenvalues replaced by 0
+        sqrt_diag_eigval(i,i)=sqrt(std::max(0.0,eigval(i))); //negative eigenvalues replaced by 0
       }
       sqrt_cov=eigvec*sqrt_diag_eigval;
       Gs=sqrt_cov*random_gaussians; //generate the correlated gaussians
@@ -1133,7 +1133,7 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
   arma::vec bhat_1(h), x_j(T_), gammahat_j, nw_grid;
   arma::vec nw_gridsizes(h), nw_lambdas(h), nw_criterion_values(h), nw_SSRs(h), nw_lambda_poss(h), nw_nonzeros(h);
   arma::uvec minusj, Hminusj, nw_H;
-  arma::mat nw_residuals(T_,h), Thetahat(h,N, fill::zeros), Upsilonhat_inv(h,h, fill::zeros), gammahats(N-1,h), Gammahat(h,N, fill::zeros), Xminusj(T_,N-1);
+  arma::mat nw_residuals(T_,h), Thetahat(h,N, arma::fill::zeros), Upsilonhat_inv(h,h, arma::fill::zeros), gammahats(N-1,h), Gammahat(h,N, arma::fill::zeros), Xminusj(T_,N-1);
   partial_lasso_selected_output nw_L;
   std::list<arma::uvec> nw_nonzero_poss(h);
   //If we manually provide ALL the necessary nodewise components, we don't need to estimate them any more
@@ -1161,7 +1161,7 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
         if ( ! Progress::check_abort() ) {
           unsigned int j_p=H(i);
           arma::vec x_j_p=X.col(j_p);
-          arma::uvec minusj_p=linspace<arma::uvec>(0,N-1,N); minusj_p.shed_row(j_p);
+          arma::uvec minusj_p=arma::linspace<arma::uvec>(0,N-1,N); minusj_p.shed_row(j_p);
           arma::mat Xminusj_p(T_,N-1); Xminusj_p=X.cols(minusj_p);
           arma::uvec Hminusj_p=H; Hminusj_p.shed_row(i);
           arma::uvec nw_H_p=unique_match(minusj_p, Hminusj_p);
@@ -1199,7 +1199,7 @@ partial_desparsified_lasso_output partial_desparsified_lasso(const arma::mat& X,
         if ( ! Progress::check_abort() ) {
           j=H(i);
           x_j=X.col(j);
-          minusj=linspace<arma::uvec>(0,N-1,N); minusj.shed_row(j);
+          minusj=arma::linspace<arma::uvec>(0,N-1,N); minusj.shed_row(j);
           Xminusj=X.cols(minusj);
           Hminusj=H; Hminusj.shed_row(i);
           nw_H=unique_match(minusj, Hminusj);
@@ -1320,7 +1320,7 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   arma::vec Rbhat_1_unscaled=R*bhat_1_unscaled;
   arma::vec std_errors_individual_vars(PDL.h);
   for(unsigned int i=0; i<PDL.h; i++){
-    std_errors_individual_vars(i)=sqrt( as_scalar(covariance(i,i))/double(PDL.T_) );
+    std_errors_individual_vars(i)=sqrt( arma::as_scalar(covariance(i,i))/double(PDL.T_) );
   }
   arma::vec std_errors_individual_vars_unscale=unscale(s, std_errors_individual_vars, H, demean, scale);
   arma::vec std_errors(P);
@@ -1374,7 +1374,7 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   arma::mat covariance_EWC=PDL.Upsilonhat_inv*Omegahat_EWC*PDL.Upsilonhat_inv;
   arma::vec std_errors_individual_vars_EWC(PDL.h);
   for(unsigned int i=0; i<PDL.h; i++){
-    std_errors_individual_vars_EWC(i)=sqrt( as_scalar(covariance_EWC(i,i))/double(PDL.T_) );
+    std_errors_individual_vars_EWC(i)=sqrt( arma::as_scalar(covariance_EWC(i,i))/double(PDL.T_) );
   }
   arma::vec std_errors_individual_vars_unscale_EWC=unscale(s, std_errors_individual_vars_EWC, H, demean, scale);
   arma::mat intervals_EWC(PDL.h, 2*alphas.length()+1); // intervals for individual variables
@@ -1401,7 +1401,7 @@ partial_desparsified_lasso_inference_output partial_desparsified_lasso_inference
   arma::mat covariance_NWfb=PDL.Upsilonhat_inv*Omegahat_NWfb*PDL.Upsilonhat_inv;
   arma::vec std_errors_individual_vars_NWfb(PDL.h);
   for(unsigned int i=0; i<PDL.h; i++){
-    std_errors_individual_vars_NWfb(i)=sqrt( as_scalar(covariance_NWfb(i,i))/double(PDL.T_) );
+    std_errors_individual_vars_NWfb(i)=sqrt( arma::as_scalar(covariance_NWfb(i,i))/double(PDL.T_) );
   }
   arma::vec std_errors_individual_vars_unscale_NWfb=unscale(s, std_errors_individual_vars_NWfb, H, demean, scale);
   arma::mat intervals_NWfb(PDL.h, 2*1+1); // intervals for individual variables
@@ -1512,10 +1512,10 @@ arma::mat Rcpp_make_lags(const arma::mat& x, const unsigned int& lags) {
   unsigned int N=x.n_cols;
   unsigned int T_=x.n_rows;
   //arma::mat ret=na_matrix(T_, N*lags);
-  arma::mat ret=mat(T_, N*lags, fill::zeros);
+  arma::mat ret=arma::mat(T_, N*lags, arma::fill::zeros);
   for(unsigned int i=1; i<=lags; i++){
     //ret[(1+i):T_,((i-1)*N+1):(i*N)]<-x[1:(T_-i),]
-    ret(span(i,T_-1),span((i-1)*N,i*N-1))=x(span(0,(T_-1-i)),span(0,N-1));
+    ret(arma::span(i,T_-1),arma::span((i-1)*N,i*N-1))=x(arma::span(0,(T_-1-i)),arma::span(0,N-1));
   }
   return ret;
 }
@@ -1606,7 +1606,7 @@ reg_output OLS_HAC(const arma::mat& X, const arma::colvec& y, const arma::uvec& 
   arma::mat covariance_EWC=Thetahat*Omegahat_EWC*Thetahat;
   arma::vec std_errors_individual_vars_EWC(H.n_elem);
   for(unsigned int i=0; i<H.n_elem; i++){
-    std_errors_individual_vars_EWC(i)=sqrt( as_scalar(covariance_EWC(i,i))/double(T_) );
+    std_errors_individual_vars_EWC(i)=sqrt( arma::as_scalar(covariance_EWC(i,i))/double(T_) );
   }
   arma::vec std_errors_individual_vars_unscale_EWC=unscale(s, std_errors_individual_vars_EWC, H, demean, scale);
   arma::mat intervals_EWC(H.n_elem, 2*alphas.length()+1); // intervals for individual variables
@@ -1633,7 +1633,7 @@ reg_output OLS_HAC(const arma::mat& X, const arma::colvec& y, const arma::uvec& 
   arma::mat covariance_NWfb=Thetahat*Omegahat_NWfb*Thetahat;
   arma::vec std_errors_individual_vars_NWfb(H.n_elem);
   for(unsigned int i=0; i<H.n_elem; i++){
-    std_errors_individual_vars_NWfb(i)=sqrt( as_scalar(covariance_NWfb(i,i))/double(T_) );
+    std_errors_individual_vars_NWfb(i)=sqrt( arma::as_scalar(covariance_NWfb(i,i))/double(T_) );
   }
   arma::vec std_errors_individual_vars_unscale_NWfb=unscale(s, std_errors_individual_vars_NWfb, H, demean, scale);
   arma::mat intervals_NWfb(H.n_elem, 2*1+1); // intervals for individual variables
@@ -1686,9 +1686,9 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     NumericMatrix state_dummy_temp(state_dummy_);
     state_dummy=as<arma::mat>(state_dummy_temp);
     states=state_dummy.n_cols;
-    H=linspace<arma::uvec>(0,2*state_dummy.n_cols-2,2*state_dummy.n_cols-1);
+    H=arma::linspace<arma::uvec>(0,2*state_dummy.n_cols-2,2*state_dummy.n_cols-1);
   }else{
-    H=linspace<arma::uvec>(0,0,1);
+    H=arma::linspace<arma::uvec>(0,0,1);
   }
   arma::mat r;
   if(r_.isNotNull()){
@@ -1725,8 +1725,8 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
   for(unsigned int i=0; i<H.n_elem; i++){
     nw_opt_types(i)=3;
   }
-  arma::mat intervals_zeros(hmax+1,1+2*as<arma::mat>(alphas).n_elem, fill::zeros);
-  arma::mat intervals_zeros_NWfb(hmax+1,1+2*1, fill::zeros);//////////////////////////
+  arma::mat intervals_zeros(hmax+1,1+2*as<arma::mat>(alphas).n_elem, arma::fill::zeros);
+  arma::mat intervals_zeros_NWfb(hmax+1,1+2*1, arma::fill::zeros);//////////////////////////
   arma::cube intervals(hmax+1,1+2*as<arma::mat>(alphas).n_elem, states);
   arma::cube intervals_EWC(hmax+1,1+2*as<arma::mat>(alphas).n_elem, states);////////////////////////////////
   arma::cube intervals_NWfb(hmax+1,1+2*1, states);////////////////////////////////
@@ -1735,8 +1735,8 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     intervals_EWC.slice(i)=intervals_zeros;//////////////////////////////
     intervals_NWfb.slice(i)=intervals_zeros_NWfb;//////////////////////////////
   }
-  arma::mat R(H.n_elem, H.n_elem, fill::eye);
-  arma::vec Q(H.n_elem, fill::ones);
+  arma::mat R(H.n_elem, H.n_elem, arma::fill::eye);
+  arma::vec Q(H.n_elem, arma::fill::ones);
   unsigned int T_=y.n_elem;
   //check if any columns in x y are the same
   bool is_same=false;
@@ -1787,7 +1787,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     dependent=y; //cumulating doesn't matter at horizon 0
     joint_trimmed=join_horiz(dependent,regressors); joint_trimmed=joint_trimmed.rows(lags,T_-0-1);
   }else{ //in other cases, we want to run a dummy regression at horizon 1, just to get the nodewise parts
-    dependent=mat(T_,1,fill::zeros);
+    dependent=arma::mat(T_,1,arma::fill::zeros);
     if(cumulate_y){ //cumulation matters at horizon 1
       for(unsigned int i=0; i<T_-1;i++){
         dependent.row(i)=sum(y.rows(i,i+1));
@@ -1835,37 +1835,37 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     d.b_H_unscaled=pdli.bhat_1_unscaled;
     d.Thetahat=pdli.Thetahat;
   }
-  arma::mat betahats(regressors_trimmed.n_cols,hmax+1,fill::zeros);
+  arma::mat betahats(regressors_trimmed.n_cols,hmax+1,arma::fill::zeros);
   betahats.col(0)=d.betahat;
 
   //fill in the results if they're needed
   if(!y_predetermined && (!is_same || states>1)){
       for(unsigned int i=0; i<states; i++){
-        intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);
-        intervals_EWC(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled_EWC).row(i);
-        intervals_NWfb(span(0,0),span(0,1+2*1-1),span(i,i))=(d.intervals_unscaled_NWfb).row(i);
+        intervals(arma::span(0,0),arma::span(0,1+2*as<arma::mat>(alphas).n_elem-1),arma::span(i,i))=(d.intervals_unscaled).row(i);
+        intervals_EWC(arma::span(0,0),arma::span(0,1+2*as<arma::mat>(alphas).n_elem-1),arma::span(i,i))=(d.intervals_unscaled_EWC).row(i);
+        intervals_NWfb(arma::span(0,0),arma::span(0,1+2*1-1),arma::span(i,i))=(d.intervals_unscaled_NWfb).row(i);
     }
   }
 
   //filling in either 1's or 0's in other cases
   if(!y_predetermined && is_same && states==1){ //fill with 1's
-    arma::mat mat_of_ones(1,1+2*as<arma::mat>(alphas).n_elem, fill::ones);
-    arma::mat mat_of_ones_NWfb(1,1+2*1, fill::ones);
+    arma::mat mat_of_ones(1,1+2*as<arma::mat>(alphas).n_elem, arma::fill::ones);
+    arma::mat mat_of_ones_NWfb(1,1+2*1, arma::fill::ones);
     for(unsigned int i=0; i<states; i++){ //note that this loop is only over 1 element
-      intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=mat_of_ones.row(0);
-      intervals_EWC(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=mat_of_ones.row(0);//////////////////
-      intervals_NWfb(span(0,0),span(0,1+2*1-1),span(i,i))=mat_of_ones_NWfb.row(0);//////////////////
+      intervals(arma::span(0,0),arma::span(0,1+2*as<arma::mat>(alphas).n_elem-1),arma::span(i,i))=mat_of_ones.row(0);
+      intervals_EWC(arma::span(0,0),arma::span(0,1+2*as<arma::mat>(alphas).n_elem-1),arma::span(i,i))=mat_of_ones.row(0);//////////////////
+      intervals_NWfb(arma::span(0,0),arma::span(0,1+2*1-1),arma::span(i,i))=mat_of_ones_NWfb.row(0);//////////////////
     }
   }
 
   if(y_predetermined){
-    arma::mat mat_of_ones(1,1+2*as<arma::mat>(alphas).n_elem, fill::ones);
-    arma::mat mat_of_ones_NWfb(1,1+2*1, fill::ones);
+    arma::mat mat_of_ones(1,1+2*as<arma::mat>(alphas).n_elem, arma::fill::ones);
+    arma::mat mat_of_ones_NWfb(1,1+2*1, arma::fill::ones);
     if(is_same){//fill with 1's
       for(unsigned int i=0; i<states; i++){
-        intervals(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled).row(i);
-        intervals_EWC(span(0,0),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(i,i))=(d.intervals_unscaled_EWC).row(i);
-        intervals_NWfb(span(0,0),span(0,1+2*1-1),span(i,i))=(d.intervals_unscaled_NWfb).row(i);
+        intervals(arma::span(0,0),arma::span(0,1+2*as<arma::mat>(alphas).n_elem-1),arma::span(i,i))=(d.intervals_unscaled).row(i);
+        intervals_EWC(arma::span(0,0),arma::span(0,1+2*as<arma::mat>(alphas).n_elem-1),arma::span(i,i))=(d.intervals_unscaled_EWC).row(i);
+        intervals_NWfb(arma::span(0,0),arma::span(0,1+2*1-1),arma::span(i,i))=(d.intervals_unscaled_NWfb).row(i);
       }
     }else{ //fill with 0's
       //do nothing, because the matrices already start out filled with 0's
@@ -1883,7 +1883,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
       if (!Progress::check_abort()){
         reg_output d_p;
         arma::mat dependent_p;
-        dependent_p=mat(T_,1,fill::zeros);
+        dependent_p=arma::mat(T_,1,arma::fill::zeros);
         if(cumulate_y){
           for(unsigned int i=0; i<T_-h;i++){
             dependent_p.row(i)=sum(y.rows(i,i+h));
@@ -1903,7 +1903,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
           nm_p.use_manual=true;
           nm_p.manual_Thetahat=mThetahat;
           nm_p.manual_Upsilonhat_inv=mUpsilonhat_inv;
-          nm_p.manual_nw_residuals=mnw_residuals(span(0,regressors_trimmed_p.n_rows-1), span(0,H.n_elem-1));
+          nm_p.manual_nw_residuals=mnw_residuals(arma::span(0,regressors_trimmed_p.n_rows-1), arma::span(0,H.n_elem-1));
           grids_output g_p=build_gridsXy(regressors_trimmed_p.n_rows, regressors_trimmed_p.n_cols, 50, regressors_trimmed_p, dependent_trimmed_p, H, true, true);
           partial_desparsified_lasso_inference_output pdli_p=partial_desparsified_lasso_inference(regressors_trimmed_p, dependent_trimmed_p, H, true, true, init_partial, nw_partials,
                                                                                                   g_p.init_grid, g_p.nw_grids, init_selection_type, nw_selection_types,
@@ -1923,9 +1923,9 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
         }
         betahats.col(h)=d_p.betahat;
         for(unsigned int j=0; j<states; j++){
-          intervals(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled).row(j);
-          intervals_EWC(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled_EWC).row(j);//////////
-          intervals_NWfb(span(h,h),span(0,1+2*1-1),span(j,j))=(d_p.intervals_unscaled_NWfb).row(j);/////////
+          intervals(arma::span(h,h),arma::span(0,1+2*as<arma::mat>(alphas).n_elem-1),arma::span(j,j))=(d_p.intervals_unscaled).row(j);
+          intervals_EWC(arma::span(h,h),arma::span(0,1+2*as<arma::mat>(alphas).n_elem-1),arma::span(j,j))=(d_p.intervals_unscaled_EWC).row(j);//////////
+          intervals_NWfb(arma::span(h,h),arma::span(0,1+2*1-1),arma::span(j,j))=(d_p.intervals_unscaled_NWfb).row(j);/////////
         }
         p.increment();
       }
@@ -1934,7 +1934,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
     for(unsigned int h=1; h<=hmax;h++){
       reg_output d_p;
       arma::mat dependent_p;
-      dependent_p=mat(T_,1,fill::zeros);
+      dependent_p=arma::mat(T_,1,arma::fill::zeros);
       if(cumulate_y){
         for(unsigned int i=0; i<T_-h;i++){
           dependent_p.row(i)=sum(y.rows(i,i+h));
@@ -1954,7 +1954,7 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
         nm_p.use_manual=true;
         nm_p.manual_Thetahat=mThetahat;
         nm_p.manual_Upsilonhat_inv=mUpsilonhat_inv;
-        nm_p.manual_nw_residuals=mnw_residuals(span(0,regressors_trimmed_p.n_rows-1), span(0,H.n_elem-1));
+        nm_p.manual_nw_residuals=mnw_residuals(arma::span(0,regressors_trimmed_p.n_rows-1), arma::span(0,H.n_elem-1));
         grids_output g_p=build_gridsXy(regressors_trimmed_p.n_rows, regressors_trimmed_p.n_cols, 50, regressors_trimmed_p, dependent_trimmed_p, H, true, true);
         partial_desparsified_lasso_inference_output pdli_p=partial_desparsified_lasso_inference(regressors_trimmed_p, dependent_trimmed_p, H, true, true, init_partial, nw_partials,
                                                                                                 g_p.init_grid, g_p.nw_grids, init_selection_type, nw_selection_types,
@@ -1974,9 +1974,9 @@ LP_state_dependent_output local_projection_state_dependent(Nullable<NumericMatri
       }
       betahats.col(h)=d_p.betahat;
       for(unsigned int j=0; j<states; j++){
-        intervals(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled).row(j);
-        intervals_EWC(span(h,h),span(0,1+2*as<arma::mat>(alphas).n_elem-1),span(j,j))=(d_p.intervals_unscaled_EWC).row(j);//////////
-        intervals_NWfb(span(h,h),span(0,1+2*1-1),span(j,j))=(d_p.intervals_unscaled_NWfb).row(j);/////////
+        intervals(arma::span(h,h),arma::span(0,1+2*as<arma::mat>(alphas).n_elem-1),arma::span(j,j))=(d_p.intervals_unscaled).row(j);
+        intervals_EWC(arma::span(h,h),arma::span(0,1+2*as<arma::mat>(alphas).n_elem-1),arma::span(j,j))=(d_p.intervals_unscaled_EWC).row(j);//////////
+        intervals_NWfb(arma::span(h,h),arma::span(0,1+2*1-1),arma::span(j,j))=(d_p.intervals_unscaled_NWfb).row(j);/////////
       }
       p.increment();
     }

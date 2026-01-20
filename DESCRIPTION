@@ -1,7 +1,7 @@
 Package: desla
 Type: Package
 Title: Desparsified Lasso Inference for Time Series
-Version: 0.3.0
+Version: 0.3.1
 Authors@R: c(
     person("Robert", "Adamek", email="robertadamek94@gmail.com", role=c("cre", "aut")),
     person("Stephan", "Smeekes", email = "s.smeekes@maastrichtuniversity.nl", role = "aut"),
