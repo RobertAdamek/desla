@@ -7,6 +7,7 @@
 
 [![CRAN_Version_Badge](http://www.r-pkg.org/badges/version/desla)](https://cran.r-project.org/package=desla)
 [![CRAN_Downloads_Badge](https://cranlogs.r-pkg.org/badges/grand-total/desla)](https://cran.r-project.org/package=desla)
+[![R-CMD-check](https://github.com/RobertAdamek/desla/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/RobertAdamek/desla/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 ## Installation

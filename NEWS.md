@@ -1,3 +1,9 @@
+# desla 0.3.1
+
+* Minor fixes to pre-empt any possible issues related to CRAN's upcoming default compiler.
+
+* Updated citation formatting.
+
 # desla 0.3.0
 
 * Seed control implemented for the functions desla and HDLP. Functionality remains the same, and seeds can be set the standard way with set.seed(). This is only relevant when using the (default) plug-in tuning parameter selection method.

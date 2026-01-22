@@ -6,3 +6,5 @@ README.Rmd
 README-hdlp-1.png
 README-hdlp-state-1.png
 ^CRAN-SUBMISSION$
+^revdep$
+^\.github$
